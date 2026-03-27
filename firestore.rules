@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Por ahora permite lectura/escritura autenticada desde la app
+    // Puedes restringir más según necesidades
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
