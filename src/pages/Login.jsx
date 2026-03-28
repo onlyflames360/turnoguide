@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -14,6 +14,38 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(false)
+
+  const [userNames, setUserNames] = useState([])
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const pinRef = useRef(null)
+
+  // Carga los nombres de usuarios al montar
+  useEffect(() => {
+    getDocs(collection(db, 'users')).then(snap => {
+      setUserNames(snap.docs.map(d => d.data().name).filter(Boolean).sort())
+    })
+  }, [])
+
+  function handleNameChange(e) {
+    const val = e.target.value
+    setName(val)
+    if (val.trim().length > 0) {
+      const filtered = userNames.filter(n =>
+        n.toLowerCase().includes(val.toLowerCase())
+      )
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  function selectSuggestion(n) {
+    setName(n)
+    setShowSuggestions(false)
+    setTimeout(() => pinRef.current?.focus(), 50)
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -56,10 +88,12 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo y título */}
         <div className="text-center mb-8">
-          <div className="inline-block bg-white rounded-2xl p-3 shadow-xl mb-4">
-            <img src="/logo.png" alt="TurnoGuide" className="h-24 w-24 object-contain" />
-          </div>
-          <h1 className="text-3xl font-bold text-white">TurnoGuide</h1>
+          <img
+            src="/logo.png"
+            alt="TurnoGuide"
+            className="h-40 w-40 mx-auto mb-4"
+          />
+          <h1 className="text-3xl font-bold text-white tracking-tight">TurnoGuide</h1>
           <p className="text-blue-200 text-sm mt-1">Turnos de Audio y Acomodadores</p>
           <p className="text-blue-300 text-xs mt-1">Congregación Villajoyosa</p>
         </div>
@@ -72,18 +106,39 @@ export default function Login() {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1">Nombre</label>
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Tu nombre completo"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    autoComplete="name"
-                  />
+                  <div className="relative">
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Tu nombre completo"
+                      value={name}
+                      onChange={handleNameChange}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                      onFocus={() => name.trim() && suggestions.length && setShowSuggestions(true)}
+                      autoComplete="off"
+                    />
+                    {showSuggestions && (
+                      <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                        {suggestions.map(n => (
+                          <li
+                            key={n}
+                            onMouseDown={() => selectSuggestion(n)}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-slate-700"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+                              {n[0]}
+                            </div>
+                            {n}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1">PIN</label>
                   <input
+                    ref={pinRef}
                     className="input"
                     type="password"
                     placeholder="Tu PIN"

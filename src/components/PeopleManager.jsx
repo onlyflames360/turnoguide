@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { useState, useEffect, useRef } from 'react'
+import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { ROLES } from '../utils/scheduleGenerator'
 
@@ -11,7 +11,19 @@ export default function PeopleManager({ people, onRefresh }) {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
 
-  function resetForm() { setForm({ name: '', skills: [] }); setEditing(null); setShowForm(false); setError('') }
+  const [userNames, setUserNames] = useState([])
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const nameInputRef = useRef(null)
+
+  // Carga nombres de usuarios registrados para sugerirlos
+  useEffect(() => {
+    getDocs(collection(db, 'users')).then(snap => {
+      setUserNames(snap.docs.map(d => d.data().name).filter(Boolean).sort())
+    })
+  }, [])
+
+  function resetForm() { setForm({ name: '', skills: [] }); setEditing(null); setShowForm(false); setError(''); setSuggestions([]); setShowSuggestions(false) }
 
   function toggleSkill(key) {
     setForm(f => ({
@@ -24,6 +36,28 @@ export default function PeopleManager({ people, onRefresh }) {
     setEditing(person)
     setForm({ name: person.name, skills: person.skills || [] })
     setShowForm(true)
+  }
+
+  function handleNameChange(e) {
+    const val = e.target.value
+    setForm(f => ({ ...f, name: val }))
+    if (val.trim().length > 0) {
+      // Sugerir nombres de usuarios que no son ya personas
+      const existingNames = people.map(p => p.name.toLowerCase())
+      const filtered = userNames.filter(n =>
+        n.toLowerCase().includes(val.toLowerCase()) &&
+        !existingNames.includes(n.toLowerCase())
+      )
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  function selectSuggestion(n) {
+    setForm(f => ({ ...f, name: n }))
+    setShowSuggestions(false)
   }
 
   async function handleSave(e) {
@@ -87,12 +121,34 @@ export default function PeopleManager({ people, onRefresh }) {
           <form onSubmit={handleSave} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">Nombre completo</label>
-              <input
-                className="input"
-                placeholder="Nombre completo"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              />
+              <div className="relative">
+                <input
+                  ref={nameInputRef}
+                  className="input"
+                  placeholder="Nombre completo"
+                  value={form.name}
+                  onChange={handleNameChange}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onFocus={() => form.name.trim() && suggestions.length && setShowSuggestions(true)}
+                  autoComplete="off"
+                />
+                {showSuggestions && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                    {suggestions.map(n => (
+                      <li
+                        key={n}
+                        onMouseDown={() => selectSuggestion(n)}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-slate-700"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+                          {n[0]}
+                        </div>
+                        {n}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-2">Habilidades</label>
@@ -158,20 +214,13 @@ export default function PeopleManager({ people, onRefresh }) {
               <button
                 onClick={() => handleToggleActive(person)}
                 className={`text-xs px-2 py-1 rounded-lg ${person.active === false ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
-                title={person.active === false ? 'Activar' : 'Desactivar'}
               >
                 {person.active === false ? '✓ Activar' : '⏸ Pausar'}
               </button>
-              <button
-                onClick={() => startEdit(person)}
-                className="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
-              >
+              <button onClick={() => startEdit(person)} className="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
                 ✏️
               </button>
-              <button
-                onClick={() => handleDelete(person)}
-                className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-              >
+              <button onClick={() => handleDelete(person)} className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">
                 🗑️
               </button>
             </div>

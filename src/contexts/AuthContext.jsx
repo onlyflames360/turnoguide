@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { registerFCM } from '../firebase/messaging'
 
 const AuthContext = createContext(null)
 
@@ -11,7 +12,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const saved = localStorage.getItem('tg_user')
     if (saved) {
-      try { setUser(JSON.parse(saved)) } catch { localStorage.removeItem('tg_user') }
+      try {
+        const userData = JSON.parse(saved)
+        setUser(userData)
+        // Registrar/refrescar token FCM también al restaurar sesión
+        registerFCM(userData.id).catch(() => {})
+      } catch { localStorage.removeItem('tg_user') }
     }
     setLoading(false)
   }, [])
@@ -29,6 +35,8 @@ export function AuthProvider({ children }) {
     const userData = { id: docSnap.id, ...docSnap.data() }
     setUser(userData)
     localStorage.setItem('tg_user', JSON.stringify(userData))
+    // Registrar token FCM en segundo plano (no bloqueante)
+    registerFCM(docSnap.id).catch(() => {})
     return userData
   }
 
