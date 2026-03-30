@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { ROLES } from '../utils/scheduleGenerator'
 
@@ -14,33 +14,8 @@ function formatDateTime(ts) {
 export default function NotificationsTab({ onBadgeChange, onGoToSchedule }) {
   const [responses, setResponses] = useState([])
   const [filter, setFilter] = useState('all') // 'all' | 'nopuedo' | 'puedo'
-  const [testing, setTesting] = useState(false)
-  const [testMsg, setTestMsg] = useState('')
 
-  async function sendTestPush() {
-    setTesting(true); setTestMsg('')
-    try {
-      await addDoc(collection(db, 'responses'), {
-        scheduleId: 'test',
-        scheduleDate: new Date().toISOString(),
-        dayType: 'Prueba',
-        personId: 'test',
-        personName: '🧪 Test de sistema',
-        roleKey: 'audio',
-        roleLabel: 'Audio',
-        response: 'nopuedo',
-        createdAt: serverTimestamp(),
-        seen: false,
-      })
-      setTestMsg('✅ Documento creado. La Cloud Function debería enviar el push en segundos.')
-    } catch (e) {
-      setTestMsg('❌ Error: ' + e.message)
-    } finally {
-      setTesting(false)
-    }
-  }
-
-  useEffect(() => {
+useEffect(() => {
     const q = query(collection(db, 'responses'), orderBy('createdAt', 'desc'))
     const unsub = onSnapshot(q, snap => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -79,17 +54,8 @@ export default function NotificationsTab({ onBadgeChange, onGoToSchedule }) {
               Marcar todo visto
             </button>
           )}
-          <button onClick={sendTestPush} disabled={testing} className="text-xs px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-medium">
-            {testing ? 'Enviando...' : '🧪 Test push'}
-          </button>
         </div>
       </div>
-
-      {testMsg && (
-        <div className="mb-4 bg-purple-50 border border-purple-200 rounded-lg px-4 py-2 text-xs text-purple-800">
-          {testMsg}
-        </div>
-      )}
 
       {/* Filtros */}
       <div className="flex gap-2 mb-4">
