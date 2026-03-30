@@ -4,6 +4,7 @@ import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
 import ScheduleTable from '../components/ScheduleTable'
+import NotificationsTab from '../components/NotificationsTab'
 import { ROLES } from '../utils/scheduleGenerator'
 import { requestNotificationPermission, showNotification, checkTomorrowNotification } from '../utils/notifications'
 
@@ -16,7 +17,10 @@ export default function UserDashboard() {
   const [myResponses, setMyResponses] = useState({}) // key: scheduleId_roleKey → response doc
   const [loading, setLoading] = useState(true)
   const [respondingKey, setRespondingKey] = useState(null)
+  const [activeTab, setActiveTab] = useState('turnos')
+  const [notifBadge, setNotifBadge] = useState(0)
   const notifChecked = useRef(false)
+  const isAyudante = user?.role === 'ayudante'
 
   const now = new Date()
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
@@ -124,6 +128,39 @@ export default function UserDashboard() {
             IMPORTANTE: Por favor llegar <span className="text-white font-semibold">30 min antes</span> de empezar la reunión
           </p>
         </div>
+
+        {/* Tabs (solo ayudante) */}
+        {isAyudante && (
+          <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+            <button
+              onClick={() => setActiveTab('turnos')}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'turnos' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              📅 Mis turnos
+            </button>
+            <button
+              onClick={() => setActiveTab('notificaciones')}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'notificaciones' ? 'bg-amber-500 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              🔔 Notificaciones
+              {notifBadge > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {notifBadge > 9 ? '9+' : notifBadge}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Tab Notificaciones (ayudante) */}
+        {isAyudante && activeTab === 'notificaciones' && (
+          <div className="card">
+            <NotificationsTab onBadgeChange={setNotifBadge} />
+          </div>
+        )}
+
+        {/* Contenido de Mis turnos */}
+        {(!isAyudante || activeTab === 'turnos') && <>
 
         {/* Sin vinculación */}
         {!myPersonId && !loading && (
@@ -238,6 +275,7 @@ export default function UserDashboard() {
             />
           )}
         </div>
+        </> }
       </main>
     </div>
   )
