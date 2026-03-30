@@ -2,7 +2,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from './config'
 
-const VAPID_KEY = 'REDACTED_VAPID_KEY'
+const VAPID_KEY = import.meta.env.VITE_VAPID_KEY
 
 let messaging = null
 
