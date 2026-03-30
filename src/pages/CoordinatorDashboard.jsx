@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, where, doc, deleteDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
 import ScheduleTable from '../components/ScheduleTable'
 import ScheduleGenerator from '../components/ScheduleGenerator'
@@ -8,12 +9,14 @@ import PeopleManager from '../components/PeopleManager'
 import UserManager from '../components/UserManager'
 import NotificationsTab from '../components/NotificationsTab'
 import { exportSchedulePdf } from '../utils/exportPdf'
-import { requestNotificationPermission, showNotification } from '../utils/notifications'
+import { requestNotificationPermission } from '../utils/notifications'
 import { onForegroundMessage } from '../firebase/messaging'
+import { ROLES } from '../utils/scheduleGenerator'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default function CoordinatorDashboard() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('schedule')
   const [schedules, setSchedules] = useState([])
   const [people, setPeople] = useState([])
@@ -22,6 +25,12 @@ export default function CoordinatorDashboard() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [notifBadge, setNotifBadge] = useState(0)
   const isFirstLoad = useRef(true)
+
+  // Mis turnos
+  const [myResponses, setMyResponses] = useState({})
+  const [respondingKey, setRespondingKey] = useState(null)
+  const [mySolicitudes, setMySolicitudes] = useState([])
+  const [answeringId, setAnsweringId] = useState(null)
 
   const now = new Date()
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
@@ -41,32 +50,89 @@ export default function CoordinatorDashboard() {
     return () => { unsubSched(); unsubPeople(); unsubUsers() }
   }, [])
 
-  // Escuchar mensajes FCM en primer plano + fallback Firestore
+  // FCM en primer plano (para el recordatorio de turnos propios)
   useEffect(() => {
     requestNotificationPermission()
+    const unsubFCM = onForegroundMessage(() => {}) // mantiene el SW activo
+    return unsubFCM
+  }, [])
 
-    // FCM en primer plano (cuando la app está abierta)
-    const unsubFCM = onForegroundMessage((payload) => {
-      const { title, body } = payload.notification ?? {}
-      if (title) showNotification(title, body)
-    })
+  const myPerson = people.find(p => p.name === user?.name)
+  const myPersonId = myPerson?.id ?? null
 
-    // Fallback: Firestore listener para notificar si FCM no está activo
+  // Mis respuestas previas
+  useEffect(() => {
+    if (!myPersonId) return
     const q = query(collection(db, 'responses'), orderBy('createdAt', 'desc'))
-    const unsubFS = onSnapshot(q, snap => {
-      if (isFirstLoad.current) { isFirstLoad.current = false; return }
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added' && change.doc.data().response === 'nopuedo') {
-          const data = change.doc.data()
-          showNotification(
-            `❌ No disponible — ${data.personName}`,
-            `No puede el ${data.dayType} en ${data.roleLabel ?? data.roleKey}`
-          )
+    return onSnapshot(q, snap => {
+      const map = {}
+      snap.docs.forEach(d => {
+        const data = d.data()
+        if (data.personId === myPersonId) {
+          const key = `${data.scheduleId}_${data.roleKey}`
+          if (!map[key]) map[key] = { id: d.id, ...data }
         }
       })
+      setMyResponses(map)
     })
-    return () => { unsubFCM(); unsubFS() }
-  }, [])
+  }, [myPersonId])
+
+  // Solicitudes de sustitución para el coordinador
+  useEffect(() => {
+    if (!myPersonId) return
+    const q = query(
+      collection(db, 'solicitudes'),
+      where('requestedPersonId', '==', myPersonId),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    )
+    return onSnapshot(q, snap => {
+      setMySolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+  }, [myPersonId])
+
+  async function handleResponse(schedule, roleKey, roleLabel, response) {
+    const key = `${schedule.id}_${roleKey}`
+    setRespondingKey(key)
+    try {
+      await addDoc(collection(db, 'responses'), {
+        scheduleId: schedule.id,
+        scheduleDate: schedule.date,
+        dayType: schedule.dayType,
+        personId: myPersonId,
+        personName: user?.name,
+        roleKey, roleLabel, response,
+        createdAt: serverTimestamp(),
+        seen: false,
+      })
+    } finally {
+      setRespondingKey(null)
+    }
+  }
+
+  async function handleSolicitudResponse(solicitud, accept) {
+    setAnsweringId(solicitud.id)
+    try {
+      if (accept) {
+        await updateDoc(doc(db, 'schedules', solicitud.scheduleId), {
+          [`assignments.${solicitud.roleKey}`]: myPersonId,
+        })
+        await updateDoc(doc(db, 'responses', solicitud.responseId), {
+          resolved: true,
+          substituteName: user?.name ?? '',
+          resolvedBy: user?.name ?? '',
+          resolvedAt: serverTimestamp(),
+          seen: true,
+        })
+      }
+      await updateDoc(doc(db, 'solicitudes', solicitud.id), {
+        status: accept ? 'accepted' : 'rejected',
+        answeredAt: serverTimestamp(),
+      })
+    } finally {
+      setAnsweringId(null)
+    }
+  }
 
   const filteredSchedules = schedules.filter(s => {
     const d = new Date(s.date)
@@ -96,8 +162,15 @@ export default function CoordinatorDashboard() {
   const upcoming = schedules.filter(s => new Date(s.date) >= today && !s.isAssamblea).length
   const activePeople = people.filter(p => p.active !== false).length
 
+  const today2 = new Date(); today2.setHours(0,0,0,0)
+  const myUpcoming = schedules.filter(s => {
+    if (s.isAssamblea || !myPersonId) return false
+    return new Date(s.date) >= today2 && Object.values(s.assignments || {}).includes(myPersonId)
+  }).slice(0, 5)
+
   const TABS = [
     { key: 'schedule',       label: '📅 Horario' },
+    { key: 'myturnos',       label: '⭐ Mis turnos' },
     { key: 'people',         label: '👥 Personas' },
     { key: 'users',          label: '🔑 Usuarios' },
     { key: 'notifications',  label: '🔔 Notificaciones' },
@@ -131,7 +204,11 @@ export default function CoordinatorDashboard() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`relative flex-1 min-w-max py-2 px-3 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-                tab === t.key ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                tab === t.key
+                  ? t.key === 'myturnos'
+                    ? 'bg-amber-400 text-white shadow-sm'
+                    : 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               {t.label}
@@ -190,6 +267,105 @@ export default function CoordinatorDashboard() {
                   isCoordinator={true}
                   userId={null}
                 />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Mis turnos */}
+        {tab === 'myturnos' && (
+          <div className="space-y-4">
+            {/* Solicitudes pendientes */}
+            {mySolicitudes.map(sol => (
+              <div key={sol.id} className="bg-amber-50 border-2 border-amber-300 rounded-2xl overflow-hidden">
+                <div className="bg-amber-400 px-4 py-2">
+                  <span className="text-white font-bold text-sm">🤝 Solicitud de sustitución</span>
+                </div>
+                <div className="px-4 py-4">
+                  <p className="text-slate-700 text-sm mb-1">
+                    <span className="font-bold">{sol.requestedByName}</span> te pide que cubras el turno de:
+                  </p>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">{sol.roleLabel}</span>
+                    <span className="text-slate-600 text-sm font-medium capitalize">{sol.dayType} · {new Date(sol.scheduleDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleSolicitudResponse(sol, true)} disabled={answeringId === sol.id}
+                      className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50">
+                      ✓ Puedo
+                    </button>
+                    <button onClick={() => handleSolicitudResponse(sol, false)} disabled={answeringId === sol.id}
+                      className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50">
+                      ✗ No puedo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="card">
+              <h3 className="font-bold text-slate-800 mb-4">Mis próximas asignaciones</h3>
+              {!myPersonId ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm">
+                  Tu usuario no está en "Personas". Añádete con tu mismo nombre para ver tus turnos.
+                </div>
+              ) : myUpcoming.length === 0 ? (
+                <p className="text-slate-400 text-sm">No tienes asignaciones próximas</p>
+              ) : (
+                <div className="space-y-3">
+                  {myUpcoming.map(sched => {
+                    const d = new Date(sched.date)
+                    const myRoles = Object.entries(sched.assignments || {})
+                      .filter(([, pid]) => pid === myPersonId)
+                      .map(([rk]) => ({ key: rk, label: ROLES.find(r => r.key === rk)?.label ?? rk }))
+                    return (
+                      <div key={sched.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className={`flex items-center justify-between px-4 py-2.5 ${sched.dayType === 'Domingo' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                          <div>
+                            <span className="font-bold text-sm">{sched.dayType}</span>
+                            <span className="text-sm ml-2 opacity-80">
+                              {String(d.getDate()).padStart(2,'0')}/{String(d.getMonth()+1).padStart(2,'0')}
+                            </span>
+                          </div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${sched.dayType === 'Domingo' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                            {MONTHS[d.getMonth()]}
+                          </span>
+                        </div>
+                        <div className="p-4 space-y-3">
+                          {myRoles.map(role => {
+                            const key = `${sched.id}_${role.key}`
+                            const existing = myResponses[key]
+                            const isResponding = respondingKey === key
+                            return (
+                              <div key={role.key} className="flex items-center justify-between gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">{role.label}</span>
+                                  {existing && (
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${existing.response === 'puedo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                                      {existing.response === 'puedo' ? '✅ Confirmado' : '❌ No puedo'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
+                                    disabled={isResponding || existing?.response === 'puedo'}
+                                    className={`text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${existing?.response === 'puedo' ? 'bg-green-500 text-white cursor-default' : 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100'} disabled:opacity-50`}
+                                  >✓ Puedo</button>
+                                  <button
+                                    onClick={() => handleResponse(sched, role.key, role.label, 'nopuedo')}
+                                    disabled={isResponding || existing?.response === 'nopuedo'}
+                                    className={`text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${existing?.response === 'nopuedo' ? 'bg-red-500 text-white cursor-default' : 'bg-red-50 text-red-600 border border-red-300 hover:bg-red-100'} disabled:opacity-50`}
+                                  >✗ No puedo</button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               )}
             </div>
           </div>

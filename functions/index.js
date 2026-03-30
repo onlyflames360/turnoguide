@@ -38,9 +38,9 @@ async function sendPush(token, title, body) {
   }
 }
 
-/** Tokens FCM de coordinadores y ayudantes */
+/** Tokens FCM de ayudantes (coordinadores no reciben estos pushes) */
 async function getCoordinatorTokens() {
-  const snap = await db.collection('users').where('role', 'in', ['coordinador', 'ayudante']).get()
+  const snap = await db.collection('users').where('role', '==', 'ayudante').get()
   return snap.docs.map(d => d.data().fcmToken).filter(Boolean)
 }
 
