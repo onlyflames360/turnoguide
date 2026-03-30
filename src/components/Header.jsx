@@ -58,8 +58,8 @@ export default function Header() {
 
           <div className="text-right hidden sm:block">
             <p className="text-white text-sm font-medium leading-none">{user?.name}</p>
-            <span className={user?.role === 'coordinador' ? 'badge-coord' : 'badge-user'}>
-              {user?.role === 'coordinador' ? 'Coordinador' : 'Usuario'}
+            <span className={user?.role === 'coordinador' ? 'badge-coord' : user?.role === 'ayudante' ? 'badge-ayudante' : 'badge-user'}>
+              {user?.role === 'coordinador' ? 'Coordinador' : user?.role === 'ayudante' ? 'Ayudante' : 'Usuario'}
             </span>
           </div>
           <button
