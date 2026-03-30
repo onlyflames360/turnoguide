@@ -4,7 +4,11 @@ import Login from './pages/Login'
 import UserDashboard from './pages/UserDashboard'
 import CoordinatorDashboard from './pages/CoordinatorDashboard'
 
-function ProtectedRoute({ children, requiredRole }) {
+function homeFor(role) {
+  return role === 'coordinador' ? '/coordinator' : '/dashboard'
+}
+
+function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth()
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -15,8 +19,8 @@ function ProtectedRoute({ children, requiredRole }) {
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to={user.role === 'coordinador' ? '/coordinator' : '/dashboard'} replace />
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to={homeFor(user.role)} replace />
   }
   return children
 }
@@ -25,9 +29,9 @@ function AppRoutes() {
   const { user } = useAuth()
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to={user.role === 'coordinador' ? '/coordinator' : '/dashboard'} replace /> : <Login />} />
-      <Route path="/dashboard" element={<ProtectedRoute requiredRole="usuario"><UserDashboard /></ProtectedRoute>} />
-      <Route path="/coordinator" element={<ProtectedRoute requiredRole="coordinador"><CoordinatorDashboard /></ProtectedRoute>} />
+      <Route path="/login" element={user ? <Navigate to={homeFor(user.role)} replace /> : <Login />} />
+      <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['usuario', 'ayudante']}><UserDashboard /></ProtectedRoute>} />
+      <Route path="/coordinator" element={<ProtectedRoute allowedRoles={['coordinador']}><CoordinatorDashboard /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
