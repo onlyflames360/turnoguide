@@ -1,0 +1,233 @@
+import { useState, useEffect } from 'react'
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebase/config'
+import { useAuth } from '../contexts/AuthContext'
+import { ROLES } from '../utils/scheduleGenerator'
+import ChangeModal from './ChangeModal'
+
+function formatDate(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  return d.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })
+}
+
+function timeAgo(ts) {
+  if (!ts) return ''
+  const d = ts.toDate ? ts.toDate() : new Date(ts)
+  const mins = Math.floor((Date.now() - d) / 60000)
+  if (mins < 1) return 'ahora mismo'
+  if (mins < 60) return `hace ${mins} min`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `hace ${h}h`
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
+}
+
+export default function SubstituteTab({ schedules, people, onBadgeChange }) {
+  const { user } = useAuth()
+  const [responses, setResponses] = useState([])
+  const [filter, setFilter] = useState('pending') // 'pending' | 'resolved' | 'all'
+  const [modalData, setModalData] = useState(null) // { response, schedule }
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const q = query(collection(db, 'responses'), orderBy('createdAt', 'desc'))
+    const unsub = onSnapshot(q, snap => {
+      const all = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(r => r.response === 'nopuedo' && r.scheduleId !== 'test')
+      setResponses(all)
+      const pending = all.filter(r => !r.resolved).length
+      onBadgeChange?.(pending)
+    })
+    return unsub
+  }, [])
+
+  const filtered = responses.filter(r => {
+    if (filter === 'pending') return !r.resolved
+    if (filter === 'resolved') return !!r.resolved
+    return true
+  })
+
+  const pendingCount = responses.filter(r => !r.resolved).length
+  const resolvedCount = responses.filter(r => r.resolved).length
+
+  function openModal(response) {
+    const schedule = schedules.find(s => s.id === response.scheduleId)
+    if (!schedule) return
+    setModalData({ response, schedule })
+  }
+
+  async function handleConfirm(roleKey, newPersonId) {
+    if (!modalData || !newPersonId) return
+    setSaving(true)
+    try {
+      const { response, schedule } = modalData
+      const substitutePerson = people.find(p => p.id === newPersonId)
+
+      // 1. Actualizar el horario
+      await updateDoc(doc(db, 'schedules', schedule.id), {
+        [`assignments.${roleKey}`]: newPersonId,
+      })
+
+      // 2. Marcar la respuesta como resuelta
+      await updateDoc(doc(db, 'responses', response.id), {
+        resolved: true,
+        substituteName: substitutePerson?.name ?? '',
+        resolvedBy: user?.name ?? '',
+        resolvedAt: serverTimestamp(),
+        seen: true,
+      })
+
+      setModalData(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      {/* Cabecera con stats */}
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h3 className="font-bold text-slate-800 text-base">Gestión de sustitutos</h3>
+          <p className="text-slate-500 text-xs mt-0.5">Asigna reemplazos para quienes no pueden asistir</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="text-center bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
+            <p className="text-lg font-bold text-red-600 leading-none">{pendingCount}</p>
+            <p className="text-xs text-red-500 mt-0.5">Pendientes</p>
+          </div>
+          <div className="text-center bg-green-50 border border-green-200 rounded-xl px-3 py-1.5">
+            <p className="text-lg font-bold text-green-600 leading-none">{resolvedCount}</p>
+            <p className="text-xs text-green-500 mt-0.5">Resueltos</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex gap-1.5 mb-4 bg-slate-100 p-1 rounded-xl">
+        {[
+          { key: 'pending', label: '🔴 Pendientes', count: pendingCount },
+          { key: 'resolved', label: '✅ Resueltos', count: resolvedCount },
+          { key: 'all', label: 'Todos', count: responses.length },
+        ].map(f => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+              filter === f.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {f.label}
+            {f.count > 0 && (
+              <span className={`ml-1 text-xs rounded-full px-1.5 py-0.5 ${
+                filter === f.key
+                  ? f.key === 'pending' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'
+                  : 'bg-slate-200 text-slate-400'
+              }`}>
+                {f.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Lista */}
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-slate-400">
+            <div className="text-4xl mb-2">{filter === 'pending' ? '🎉' : '📋'}</div>
+            <p className="font-medium">
+              {filter === 'pending' ? '¡Sin pendientes!' : 'Sin registros'}
+            </p>
+            <p className="text-sm mt-1">
+              {filter === 'pending' ? 'Todos los turnos están cubiertos' : 'No hay entradas en este filtro'}
+            </p>
+          </div>
+        )}
+
+        {filtered.map(r => {
+          const role = ROLES.find(rl => rl.key === r.roleKey)
+          const isPending = !r.resolved
+          const sched = schedules.find(s => s.id === r.scheduleId)
+          const currentPerson = sched
+            ? people.find(p => p.id === sched.assignments?.[r.roleKey])
+            : null
+
+          return (
+            <div
+              key={r.id}
+              className={`rounded-xl border-l-4 border border-slate-200 bg-white overflow-hidden ${
+                isPending ? 'border-l-red-400' : 'border-l-green-400'
+              }`}
+            >
+              {/* Top strip */}
+              <div className={`px-4 py-2 flex items-center justify-between ${isPending ? 'bg-red-50' : 'bg-green-50'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPending ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    {isPending ? '🔴 Pendiente' : '✅ Resuelto'}
+                  </span>
+                  <span className="text-xs text-slate-500">{timeAgo(r.createdAt)}</span>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                  role?.section === 'audioVideo' ? 'bg-blue-100 text-blue-700'
+                  : role?.section === 'acomodadores' ? 'bg-green-100 text-green-700'
+                  : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {role?.label ?? r.roleKey}
+                </span>
+              </div>
+
+              {/* Body */}
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold shrink-0">
+                      {r.personName?.[0] ?? '?'}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800 text-sm">{r.personName}</p>
+                      <p className="text-xs text-slate-500 capitalize">{r.dayType} · {formatDate(r.scheduleDate)}</p>
+                      {!isPending && (
+                        <p className="text-xs text-green-700 font-medium mt-0.5">
+                          Sustituto: {r.substituteName} · por {r.resolvedBy}
+                        </p>
+                      )}
+                      {isPending && currentPerson && currentPerson.id !== people.find(p => p.name === r.personName)?.id && (
+                        <p className="text-xs text-amber-600 font-medium mt-0.5">
+                          En horario: {currentPerson.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {isPending && (
+                    <button
+                      onClick={() => openModal(r)}
+                      disabled={!sched}
+                      className="shrink-0 flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors disabled:opacity-40"
+                    >
+                      🔄 Sustituto
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Modal */}
+      {modalData && (
+        <ChangeModal
+          schedule={modalData.schedule}
+          roleKey={modalData.response.roleKey}
+          people={people}
+          allSchedules={schedules}
+          onConfirm={handleConfirm}
+          onClose={() => setModalData(null)}
+        />
+      )}
+    </div>
+  )
+}

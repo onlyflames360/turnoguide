@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
 import ScheduleTable from '../components/ScheduleTable'
 import NotificationsTab from '../components/NotificationsTab'
+import SubstituteTab from '../components/SubstituteTab'
 import { ROLES } from '../utils/scheduleGenerator'
 import { requestNotificationPermission, showNotification, checkTomorrowNotification } from '../utils/notifications'
 
@@ -19,6 +20,7 @@ export default function UserDashboard() {
   const [respondingKey, setRespondingKey] = useState(null)
   const [activeTab, setActiveTab] = useState('turnos')
   const [notifBadge, setNotifBadge] = useState(0)
+  const [substBadge, setSubstBadge] = useState(0)
   const notifChecked = useRef(false)
   const isAyudante = user?.role === 'ayudante'
 
@@ -142,10 +144,21 @@ export default function UserDashboard() {
               onClick={() => setActiveTab('notificaciones')}
               className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'notificaciones' ? 'bg-amber-500 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              🔔 Notificaciones
+              🔔 Avisos
               {notifBadge > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                   {notifBadge > 9 ? '9+' : notifBadge}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('sustitutos')}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'sustitutos' ? 'bg-red-500 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              🔄 Sustitutos
+              {substBadge > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {substBadge > 9 ? '9+' : substBadge}
                 </span>
               )}
             </button>
@@ -156,6 +169,17 @@ export default function UserDashboard() {
         {isAyudante && activeTab === 'notificaciones' && (
           <div className="card">
             <NotificationsTab onBadgeChange={setNotifBadge} />
+          </div>
+        )}
+
+        {/* Tab Sustitutos (ayudante) */}
+        {isAyudante && activeTab === 'sustitutos' && (
+          <div className="card">
+            <SubstituteTab
+              schedules={schedules}
+              people={people}
+              onBadgeChange={setSubstBadge}
+            />
           </div>
         )}
 
