@@ -80,18 +80,20 @@ export default function UserManager({ users, onRefresh }) {
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">Rol</label>
               <div className="flex gap-2">
-                {['usuario', 'coordinador'].map(r => (
+                {[
+                  { value: 'usuario', label: '👤 Usuario', active: 'bg-blue-600 text-white' },
+                  { value: 'ayudante', label: '🤝 Ayudante', active: 'bg-amber-500 text-white' },
+                  { value: 'coordinador', label: '👑 Coordinador', active: 'bg-pink-500 text-white' },
+                ].map(({ value, label, active }) => (
                   <button
-                    key={r}
+                    key={value}
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, role: r }))}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
-                      form.role === r
-                        ? r === 'coordinador' ? 'bg-pink-500 text-white' : 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    onClick={() => setForm(f => ({ ...f, role: value }))}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      form.role === value ? active : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {r === 'coordinador' ? '👑 Coordinador' : '👤 Usuario'}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -116,7 +118,11 @@ export default function UserManager({ users, onRefresh }) {
         )}
         {users.map(u => (
           <div key={u.id} className={`flex items-center gap-3 p-3 rounded-xl border bg-white border-slate-200 ${u.id === me?.id ? 'border-blue-300 bg-blue-50' : ''}`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0 ${u.role === 'coordinador' ? 'bg-gradient-to-br from-pink-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-blue-600'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0 ${
+              u.role === 'coordinador' ? 'bg-gradient-to-br from-pink-500 to-pink-600'
+              : u.role === 'ayudante' ? 'bg-gradient-to-br from-amber-400 to-amber-600'
+              : 'bg-gradient-to-br from-blue-500 to-blue-600'
+            }`}>
               {u.name[0]}
             </div>
             <div className="flex-1 min-w-0">
@@ -124,8 +130,8 @@ export default function UserManager({ users, onRefresh }) {
                 <p className="font-semibold text-slate-800 text-sm truncate">{u.name}</p>
                 {u.id === me?.id && <span className="text-xs text-blue-500">(tú)</span>}
               </div>
-              <span className={u.role === 'coordinador' ? 'badge-coord' : 'badge-user'}>
-                {u.role === 'coordinador' ? '👑 Coordinador' : '👤 Usuario'}
+              <span className={u.role === 'coordinador' ? 'badge-coord' : u.role === 'ayudante' ? 'badge-ayudante' : 'badge-user'}>
+                {u.role === 'coordinador' ? '👑 Coordinador' : u.role === 'ayudante' ? '🤝 Ayudante' : '👤 Usuario'}
               </span>
             </div>
             <div className="flex gap-1 shrink-0">
