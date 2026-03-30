@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ROLES, suggestReplacements } from '../utils/scheduleGenerator'
 
-export default function ChangeModal({ schedule, roleKey, people, allSchedules, onConfirm, onClose }) {
+export default function ChangeModal({ schedule, roleKey, people, allSchedules, onConfirm, onClose, confirmLabel = 'Confirmar' }) {
   const role = ROLES.find(r => r.key === roleKey)
   const currentPersonId = schedule.assignments?.[roleKey]
   const currentPerson = people.find(p => p.id === currentPersonId)
@@ -135,7 +135,7 @@ export default function ChangeModal({ schedule, roleKey, people, allSchedules, o
               className="btn-primary flex-1"
               disabled={!selectedId}
             >
-              Confirmar
+              {confirmLabel}
             </button>
           </div>
         </div>

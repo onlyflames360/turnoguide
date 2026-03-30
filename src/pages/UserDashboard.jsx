@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, query, orderBy, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, where, addDoc, doc, updateDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
@@ -21,6 +21,8 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('turnos')
   const [notifBadge, setNotifBadge] = useState(0)
   const [substBadge, setSubstBadge] = useState(0)
+  const [mySolicitudes, setMySolicitudes] = useState([])
+  const [answeringId, setAnsweringId] = useState(null)
   const notifChecked = useRef(false)
   const isAyudante = user?.role === 'ayudante'
 
@@ -61,6 +63,47 @@ export default function UserDashboard() {
     )
     return unsub
   }, [myPersonId])
+
+  // Solicitudes de sustitución dirigidas a este usuario
+  useEffect(() => {
+    if (!myPersonId) return
+    const q = query(
+      collection(db, 'solicitudes'),
+      where('requestedPersonId', '==', myPersonId),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    )
+    return onSnapshot(q, snap => {
+      setMySolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+  }, [myPersonId])
+
+  async function handleSolicitudResponse(solicitud, accept) {
+    setAnsweringId(solicitud.id)
+    try {
+      if (accept) {
+        // Actualizar horario
+        await updateDoc(doc(db, 'schedules', solicitud.scheduleId), {
+          [`assignments.${solicitud.roleKey}`]: myPersonId,
+        })
+        // Resolver la respuesta original
+        await updateDoc(doc(db, 'responses', solicitud.responseId), {
+          resolved: true,
+          substituteName: user?.name ?? '',
+          resolvedBy: user?.name ?? '',
+          resolvedAt: serverTimestamp(),
+          seen: true,
+        })
+      }
+      // Actualizar estado de la solicitud
+      await updateDoc(doc(db, 'solicitudes', solicitud.id), {
+        status: accept ? 'accepted' : 'rejected',
+        answeredAt: serverTimestamp(),
+      })
+    } finally {
+      setAnsweringId(null)
+    }
+  }
 
   // Pedir permiso y comprobar turno de mañana
   useEffect(() => {
@@ -130,6 +173,44 @@ export default function UserDashboard() {
             IMPORTANTE: Por favor llegar <span className="text-white font-semibold">30 min antes</span> de empezar la reunión
           </p>
         </div>
+
+        {/* Solicitudes de sustitución pendientes */}
+        {mySolicitudes.length > 0 && (
+          <div className="space-y-3">
+            {mySolicitudes.map(sol => (
+              <div key={sol.id} className="bg-amber-50 border-2 border-amber-300 rounded-2xl overflow-hidden">
+                <div className="bg-amber-400 px-4 py-2 flex items-center gap-2">
+                  <span className="text-white font-bold text-sm">🤝 Solicitud de sustitución</span>
+                </div>
+                <div className="px-4 py-4">
+                  <p className="text-slate-700 text-sm mb-1">
+                    <span className="font-bold">{sol.requestedByName}</span> te pide que cubras el turno de:
+                  </p>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">{sol.roleLabel}</span>
+                    <span className="text-slate-600 text-sm font-medium capitalize">{sol.dayType} · {new Date(sol.scheduleDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSolicitudResponse(sol, true)}
+                      disabled={answeringId === sol.id}
+                      className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      ✓ Puedo
+                    </button>
+                    <button
+                      onClick={() => handleSolicitudResponse(sol, false)}
+                      disabled={answeringId === sol.id}
+                      className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      ✗ No puedo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Tabs (solo ayudante) */}
         {isAyudante && (

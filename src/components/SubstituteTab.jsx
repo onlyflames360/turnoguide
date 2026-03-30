@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import { ROLES } from '../utils/scheduleGenerator'
@@ -25,13 +25,15 @@ function timeAgo(ts) {
 export default function SubstituteTab({ schedules, people, onBadgeChange }) {
   const { user } = useAuth()
   const [responses, setResponses] = useState([])
-  const [filter, setFilter] = useState('pending') // 'pending' | 'resolved' | 'all'
-  const [modalData, setModalData] = useState(null) // { response, schedule }
-  const [saving, setSaving] = useState(false)
+  const [solicitudes, setSolicitudes] = useState([]) // todas las solicitudes
+  const [filter, setFilter] = useState('pending')
+  const [modalData, setModalData] = useState(null)
+  const [sending, setSending] = useState(false)
 
+  // Escuchar respuestas "No puedo"
   useEffect(() => {
     const q = query(collection(db, 'responses'), orderBy('createdAt', 'desc'))
-    const unsub = onSnapshot(q, snap => {
+    return onSnapshot(q, snap => {
       const all = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(r => r.response === 'nopuedo' && r.scheduleId !== 'test')
@@ -39,7 +41,14 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
       const pending = all.filter(r => !r.resolved).length
       onBadgeChange?.(pending)
     })
-    return unsub
+  }, [])
+
+  // Escuchar solicitudes de sustitución
+  useEffect(() => {
+    const q = query(collection(db, 'solicitudes'), orderBy('createdAt', 'desc'))
+    return onSnapshot(q, snap => {
+      setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
   }, [])
 
   const filtered = responses.filter(r => {
@@ -57,30 +66,33 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
     setModalData({ response, schedule })
   }
 
-  async function handleConfirm(roleKey, newPersonId) {
+  // En lugar de asignar directamente, crea una solicitud
+  async function handleSendRequest(roleKey, newPersonId) {
     if (!modalData || !newPersonId) return
-    setSaving(true)
+    setSending(true)
     try {
       const { response, schedule } = modalData
-      const substitutePerson = people.find(p => p.id === newPersonId)
+      const candidate = people.find(p => p.id === newPersonId)
+      const role = ROLES.find(r => r.key === roleKey)
 
-      // 1. Actualizar el horario
-      await updateDoc(doc(db, 'schedules', schedule.id), {
-        [`assignments.${roleKey}`]: newPersonId,
-      })
-
-      // 2. Marcar la respuesta como resuelta
-      await updateDoc(doc(db, 'responses', response.id), {
-        resolved: true,
-        substituteName: substitutePerson?.name ?? '',
-        resolvedBy: user?.name ?? '',
-        resolvedAt: serverTimestamp(),
-        seen: true,
+      await addDoc(collection(db, 'solicitudes'), {
+        scheduleId: schedule.id,
+        scheduleDate: schedule.date,
+        dayType: schedule.dayType,
+        roleKey,
+        roleLabel: role?.label ?? roleKey,
+        responseId: response.id,
+        requestedPersonId: newPersonId,
+        requestedPersonName: candidate?.name ?? '',
+        requestedByName: user?.name ?? '',
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        answeredAt: null,
       })
 
       setModalData(null)
     } finally {
-      setSaving(false)
+      setSending(false)
     }
   }
 
@@ -90,7 +102,7 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h3 className="font-bold text-slate-800 text-base">Gestión de sustitutos</h3>
-          <p className="text-slate-500 text-xs mt-0.5">Asigna reemplazos para quienes no pueden asistir</p>
+          <p className="text-slate-500 text-xs mt-0.5">Envía solicitudes a candidatos y gestiona las respuestas</p>
         </div>
         <div className="flex gap-2">
           <div className="text-center bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
@@ -121,12 +133,8 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
             {f.label}
             {f.count > 0 && (
               <span className={`ml-1 text-xs rounded-full px-1.5 py-0.5 ${
-                filter === f.key
-                  ? f.key === 'pending' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'
-                  : 'bg-slate-200 text-slate-400'
-              }`}>
-                {f.count}
-              </span>
+                filter === f.key ? 'bg-slate-100 text-slate-500' : 'bg-slate-200 text-slate-400'
+              }`}>{f.count}</span>
             )}
           </button>
         ))}
@@ -150,9 +158,11 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
           const role = ROLES.find(rl => rl.key === r.roleKey)
           const isPending = !r.resolved
           const sched = schedules.find(s => s.id === r.scheduleId)
-          const currentPerson = sched
-            ? people.find(p => p.id === sched.assignments?.[r.roleKey])
-            : null
+
+          // Solicitudes relacionadas con esta respuesta
+          const relSolicitudes = solicitudes.filter(s => s.responseId === r.id)
+          const pendingSolicitud = relSolicitudes.find(s => s.status === 'pending')
+          const lastRejected = relSolicitudes.filter(s => s.status === 'rejected').slice(0, 3)
 
           return (
             <div
@@ -162,7 +172,7 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
               }`}
             >
               {/* Top strip */}
-              <div className={`px-4 py-2 flex items-center justify-between ${isPending ? 'bg-red-50' : 'bg-green-50'}`}>
+              <div className={`px-4 py-2 flex items-center justify-between gap-2 flex-wrap ${isPending ? 'bg-red-50' : 'bg-green-50'}`}>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPending ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                     {isPending ? '🔴 Pendiente' : '✅ Resuelto'}
@@ -179,7 +189,8 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
               </div>
 
               {/* Body */}
-              <div className="px-4 py-3">
+              <div className="px-4 py-3 space-y-3">
+                {/* Persona que no puede */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold shrink-0">
@@ -190,42 +201,74 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
                       <p className="text-xs text-slate-500 capitalize">{r.dayType} · {formatDate(r.scheduleDate)}</p>
                       {!isPending && (
                         <p className="text-xs text-green-700 font-medium mt-0.5">
-                          Sustituto: {r.substituteName} · por {r.resolvedBy}
-                        </p>
-                      )}
-                      {isPending && currentPerson && currentPerson.id !== people.find(p => p.name === r.personName)?.id && (
-                        <p className="text-xs text-amber-600 font-medium mt-0.5">
-                          En horario: {currentPerson.name}
+                          ✅ Sustituto: <span className="font-bold">{r.substituteName}</span> · por {r.resolvedBy}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {isPending && (
+                  {isPending && !pendingSolicitud && (
                     <button
                       onClick={() => openModal(r)}
                       disabled={!sched}
                       className="shrink-0 flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors disabled:opacity-40"
                     >
-                      🔄 Sustituto
+                      🔍 Buscar
                     </button>
                   )}
                 </div>
+
+                {/* Estado solicitud pendiente */}
+                {isPending && pendingSolicitud && (
+                  <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+                        {pendingSolicitud.requestedPersonName?.[0] ?? '?'}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-blue-800">⏳ Esperando respuesta</p>
+                        <p className="text-xs text-blue-600">{pendingSolicitud.requestedPersonName}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-blue-400">{timeAgo(pendingSolicitud.createdAt)}</span>
+                  </div>
+                )}
+
+                {/* Rechazados anteriores */}
+                {isPending && lastRejected.length > 0 && (
+                  <div className="space-y-1">
+                    {lastRejected.map(s => (
+                      <div key={s.id} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                        <span className="text-xs text-slate-400">❌ {s.requestedPersonName} — no puede</span>
+                        {!pendingSolicitud && (
+                          <button
+                            onClick={() => openModal(r)}
+                            disabled={!sched}
+                            className="ml-auto text-xs text-amber-600 hover:text-amber-700 font-semibold"
+                          >
+                            Buscar otro →
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Modal */}
+      {/* Modal — envía solicitud en lugar de asignar directamente */}
       {modalData && (
         <ChangeModal
           schedule={modalData.schedule}
           roleKey={modalData.response.roleKey}
           people={people}
           allSchedules={schedules}
-          onConfirm={handleConfirm}
+          onConfirm={handleSendRequest}
           onClose={() => setModalData(null)}
+          confirmLabel={sending ? 'Enviando...' : '📩 Enviar solicitud'}
         />
       )}
     </div>
