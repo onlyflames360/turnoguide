@@ -27,6 +27,18 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
     await updateDoc(ref, { isAssamblea: !schedule.isAssamblea })
   }
 
+  async function toggleSuper(schedule) {
+    const ref = doc(db, 'schedules', schedule.id)
+    const d = new Date(schedule.date)
+    if (!schedule.isSuper) {
+      d.setDate(d.getDate() - 1) // miércoles → martes
+      await updateDoc(ref, { isSuper: true, dayType: 'Martes', date: d.toISOString() })
+    } else {
+      d.setDate(d.getDate() + 1) // martes → miércoles
+      await updateDoc(ref, { isSuper: false, dayType: 'Miércoles', date: d.toISOString() })
+    }
+  }
+
   if (!schedules.length) {
     return (
       <div className="text-center py-16 text-slate-400">
@@ -127,14 +139,27 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
                   )}
 
                   {isCoordinator && (
-                    <td className="p-2 text-center">
-                      <button
-                        onClick={() => toggleAssamblea(sched)}
-                        title={sched.isAssamblea ? 'Quitar Asamblea' : 'Marcar como Asamblea'}
-                        className={`text-xs px-2 py-1 rounded ${sched.isAssamblea ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-                      >
-                        {sched.isAssamblea ? '↩' : 'Asam.'}
-                      </button>
+                    <td className="p-2 text-center space-y-1">
+                      <div>
+                        <button
+                          onClick={() => toggleAssamblea(sched)}
+                          title={sched.isAssamblea ? 'Quitar Asamblea' : 'Marcar como Asamblea'}
+                          className={`text-xs px-2 py-1 rounded ${sched.isAssamblea ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                        >
+                          {sched.isAssamblea ? '↩' : 'Asam.'}
+                        </button>
+                      </div>
+                      {(sched.dayType === 'Miércoles' || sched.isSuper) && (
+                        <div>
+                          <button
+                            onClick={() => toggleSuper(sched)}
+                            title={sched.isSuper ? 'Volver a Miércoles' : 'Cambiar a Martes (Super)'}
+                            className={`text-xs px-2 py-1 rounded ${sched.isSuper ? 'bg-amber-200 text-amber-700 hover:bg-amber-300' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}
+                          >
+                            {sched.isSuper ? '↩' : 'Super'}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -153,12 +178,22 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
               <div className={`px-4 py-2 flex items-center justify-between ${isSunday ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
                 <span className="font-bold text-sm">{sched.dayType} {formatDateShort(sched.date)}</span>
                 {isCoordinator && (
-                  <button
-                    onClick={() => toggleAssamblea(sched)}
-                    className={`text-xs px-2 py-0.5 rounded ${isSunday ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}
-                  >
-                    {sched.isAssamblea ? '↩ Normal' : 'Asamblea'}
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => toggleAssamblea(sched)}
+                      className={`text-xs px-2 py-0.5 rounded ${isSunday ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}
+                    >
+                      {sched.isAssamblea ? '↩' : 'Asam.'}
+                    </button>
+                    {(sched.dayType === 'Miércoles' || sched.isSuper) && (
+                      <button
+                        onClick={() => toggleSuper(sched)}
+                        className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700"
+                      >
+                        {sched.isSuper ? '↩' : 'Super'}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               {sched.isAssamblea ? (
