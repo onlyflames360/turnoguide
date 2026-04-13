@@ -16,7 +16,7 @@ export function exportSchedulePdf(schedules, people, month, year) {
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175) // blue-800
   doc.setFont('helvetica', 'bold')
-  doc.text('TurnoGuide — Congregación Villajoyosa', 148, 14, { align: 'center' })
+  doc.text('Congregación Villajoyosa', 148, 14, { align: 'center' })
 
   doc.setFontSize(12)
   doc.setTextColor(71, 85, 105) // slate-500
@@ -87,9 +87,9 @@ export function exportSchedulePdf(schedules, people, month, year) {
     doc.setFontSize(8)
     doc.setTextColor(148,163,184)
     doc.setFont('helvetica', 'normal')
-    doc.text(`TurnoGuide · ${MONTHS[month-1]} ${year}`, 10, doc.internal.pageSize.height - 5)
+    doc.text(`${MONTHS[month-1]} ${year}`, 10, doc.internal.pageSize.height - 5)
     doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width - 10, doc.internal.pageSize.height - 5, { align: 'right' })
   }
 
-  doc.save(`TurnoGuide_${MONTHS[month-1]}_${year}.pdf`)
+  doc.save(`Horario_${MONTHS[month-1]}_${year}.pdf`)
 }

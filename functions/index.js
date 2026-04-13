@@ -158,7 +158,8 @@ exports.dailyReminders = onSchedule(
     const usersByName = {}
     usersSnap.docs.forEach(d => { usersByName[d.data().name] = d.data() })
 
-    const sends = []
+    // Aggregate roles per token so each user gets only one push
+    const tokenRoles = new Map() // token → roleLabel[]
     schedSnap.docs.forEach(schedDoc => {
       const sched = schedDoc.data()
       if (sched.isAssamblea) return
@@ -169,11 +170,19 @@ exports.dailyReminders = onSchedule(
         const userObj = usersByName[person.name]
         if (!userObj?.fcmToken) return
         const roleLabel = ROLE_LABELS[roleKey] ?? roleKey
-        sends.push(sendPush(userObj.fcmToken,
-          '📅 TurnoGuide — Turno mañana',
-          `Mañana tienes ${roleLabel}. ¡Recuerda llegar 30 min antes!`
-        ))
+        const existing = tokenRoles.get(userObj.fcmToken) ?? []
+        existing.push(roleLabel)
+        tokenRoles.set(userObj.fcmToken, existing)
       })
+    })
+
+    const sends = []
+    tokenRoles.forEach((roles, token) => {
+      const rolesText = roles.join(' y ')
+      sends.push(sendPush(token,
+        '📅 TurnoGuide — Turno mañana',
+        `Mañana tienes ${rolesText}. ¡Recuerda llegar 30 min antes!`
+      ))
     })
 
     await Promise.all(sends)

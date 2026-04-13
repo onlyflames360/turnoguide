@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, query, orderBy, where, addDoc, doc, updateDoc, getDocs, serverTimestamp } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { collection, onSnapshot, query, orderBy, where, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
@@ -7,7 +7,7 @@ import ScheduleTable from '../components/ScheduleTable'
 import NotificationsTab from '../components/NotificationsTab'
 import SubstituteTab from '../components/SubstituteTab'
 import { ROLES } from '../utils/scheduleGenerator'
-import { requestNotificationPermission, showNotification, checkTomorrowNotification } from '../utils/notifications'
+import { showNotification } from '../utils/notifications'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -23,7 +23,6 @@ export default function UserDashboard() {
   const [substBadge, setSubstBadge] = useState(0)
   const [mySolicitudes, setMySolicitudes] = useState([])
   const [answeringId, setAnsweringId] = useState(null)
-  const notifChecked = useRef(false)
   const isAyudante = user?.role === 'ayudante'
 
   const now = new Date()
@@ -105,14 +104,6 @@ export default function UserDashboard() {
     }
   }
 
-  // Pedir permiso y comprobar turno de mañana
-  useEffect(() => {
-    if (!myPersonId || schedules.length === 0 || notifChecked.current) return
-    notifChecked.current = true
-    requestNotificationPermission().then(granted => {
-      if (granted) checkTomorrowNotification(schedules, myPersonId, people)
-    })
-  }, [myPersonId, schedules, people])
 
   async function handleResponse(schedule, roleKey, roleLabel, response) {
     const key = `${schedule.id}_${roleKey}`
