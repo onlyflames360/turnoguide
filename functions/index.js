@@ -15,7 +15,7 @@ const ROLE_LABELS = {
 
 const APP_URL = 'https://la-barbera.web.app'
 
-/** Envía un push a un token FCM */
+/** Envía un push normal a un token FCM */
 async function sendPush(token, title, body) {
   if (!token) return
   try {
@@ -35,6 +35,31 @@ async function sendPush(token, title, body) {
     })
   } catch (e) {
     console.warn('Push error:', e.message)
+  }
+}
+
+/**
+ * Push de recordatorio con botones Puedo / No puedo.
+ * Se envía como mensaje data-only para que el SW lo muestre con las acciones.
+ */
+async function sendReminderPush(token, rolesText, assignments) {
+  if (!token) return
+  try {
+    await messaging.send({
+      token,
+      data: {
+        type: 'reminder',
+        title: '📅 Turno mañana',
+        body: `Tienes ${rolesText}. ¿Puedes venir?`,
+        assignments: JSON.stringify(assignments),
+      },
+      webpush: {
+        headers: { Urgency: 'high', TTL: '86400' },
+        fcmOptions: { link: APP_URL },
+      },
+    })
+  } catch (e) {
+    console.warn('Reminder push error:', e.message)
   }
 }
 
@@ -158,8 +183,8 @@ exports.dailyReminders = onSchedule(
     const usersByName = {}
     usersSnap.docs.forEach(d => { usersByName[d.data().name] = d.data() })
 
-    // Aggregate roles per token so each user gets only one push
-    const tokenRoles = new Map() // token → roleLabel[]
+    // Aggregate roles + assignment data per token (one push per user)
+    const tokenData = new Map() // token → { roles: string[], assignments: object[] }
     schedSnap.docs.forEach(schedDoc => {
       const sched = schedDoc.data()
       if (sched.isAssamblea) return
@@ -170,19 +195,24 @@ exports.dailyReminders = onSchedule(
         const userObj = usersByName[person.name]
         if (!userObj?.fcmToken) return
         const roleLabel = ROLE_LABELS[roleKey] ?? roleKey
-        const existing = tokenRoles.get(userObj.fcmToken) ?? []
-        existing.push(roleLabel)
-        tokenRoles.set(userObj.fcmToken, existing)
+        const existing = tokenData.get(userObj.fcmToken) ?? { roles: [], assignments: [] }
+        existing.roles.push(roleLabel)
+        existing.assignments.push({
+          scheduleId: schedDoc.id,
+          roleKey,
+          personId,
+          personName: person.name,
+          scheduleDate: sched.date,
+          dayType: sched.dayType ?? '',
+        })
+        tokenData.set(userObj.fcmToken, existing)
       })
     })
 
     const sends = []
-    tokenRoles.forEach((roles, token) => {
+    tokenData.forEach(({ roles, assignments }, token) => {
       const rolesText = roles.join(' y ')
-      sends.push(sendPush(token,
-        '📅 TurnoGuide — Turno mañana',
-        `Mañana tienes ${rolesText}. ¡Recuerda llegar 30 min antes!`
-      ))
+      sends.push(sendReminderPush(token, rolesText, assignments))
     })
 
     await Promise.all(sends)
