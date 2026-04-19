@@ -73,13 +73,13 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       if (!eligible.length) { assignments[role] = null; return }
 
       eligible.sort((a, b) => {
-        // 1º: quién lleva menos turnos totales este mes
-        // (los de apoyo puro saldrán solos porque los todo-terreno ya tienen más turnos)
-        const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
-        if (totalDiff !== 0) return totalDiff
-        // 2º: quién ha hecho menos veces este rol en concreto
+        // 1º: quién ha hecho menos veces este rol en concreto este mes
+        // → nadie repite el mismo rol hasta que todos lo hayan hecho una vez
         const roleDiff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
-        return roleDiff !== 0 ? roleDiff : Math.random() - 0.5
+        if (roleDiff !== 0) return roleDiff
+        // 2º: quién lleva menos turnos totales este mes (desempate global)
+        const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
+        return totalDiff !== 0 ? totalDiff : Math.random() - 0.5
       })
 
       const chosen = eligible[0]
