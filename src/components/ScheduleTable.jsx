@@ -39,6 +39,18 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
     }
   }
 
+  async function toggleEspecial(schedule) {
+    const ref = doc(db, 'schedules', schedule.id)
+    const d = new Date(schedule.date)
+    if (!schedule.isEspecial) {
+      d.setDate(d.getDate() - 1) // domingo → sábado
+      await updateDoc(ref, { isEspecial: true, dayType: 'Sábado', date: d.toISOString() })
+    } else {
+      d.setDate(d.getDate() + 1) // sábado → domingo
+      await updateDoc(ref, { isEspecial: false, dayType: 'Domingo', date: d.toISOString() })
+    }
+  }
+
   if (!schedules.length) {
     return (
       <div className="text-center py-16 text-slate-400">
@@ -160,6 +172,17 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
                           </button>
                         </div>
                       )}
+                      {(sched.dayType === 'Domingo' || sched.isEspecial) && (
+                        <div>
+                          <button
+                            onClick={() => toggleEspecial(sched)}
+                            title={sched.isEspecial ? 'Volver a Domingo' : 'Cambiar a Sábado (Especial)'}
+                            className={`text-xs px-2 py-1 rounded ${sched.isEspecial ? 'bg-purple-200 text-purple-700 hover:bg-purple-300' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}`}
+                          >
+                            {sched.isEspecial ? '↩' : 'Especial'}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -191,6 +214,14 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
                         className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700"
                       >
                         {sched.isSuper ? '↩' : 'Super'}
+                      </button>
+                    )}
+                    {(sched.dayType === 'Domingo' || sched.isEspecial) && (
+                      <button
+                        onClick={() => toggleEspecial(sched)}
+                        className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700"
+                      >
+                        {sched.isEspecial ? '↩' : 'Especial'}
                       </button>
                     )}
                   </div>
