@@ -54,14 +54,6 @@ function buildCounts(people, existingSchedules) {
  * @param {Array} people - personas activas con { id, name, skills[] }
  * @param {Array} existingSchedules - horarios ya guardados para contar rotación justa
  */
-const SUPPORT_ROLES = new Set(['auditorio', 'entrada', 'parking'])
-const MAIN_ROLES    = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
-
-/** Devuelve true si la persona también sabe hacer roles principales (es todo-terreno) */
-function knowsMainRoles(person) {
-  return person.skills?.some(s => MAIN_ROLES.has(s))
-}
-
 export function generateSchedule(scheduleDates, people, existingSchedules = []) {
   const activePeople = people.filter(p => p.active !== false)
   const counts = buildCounts(activePeople, existingSchedules)
@@ -80,20 +72,12 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       )
       if (!eligible.length) { assignments[role] = null; return }
 
-      const isSupport = SUPPORT_ROLES.has(role)
-
       eligible.sort((a, b) => {
-        // Para roles de apoyo: priorizar todo-terreno primero,
-        // los que solo saben apoyo son el refuerzo
-        if (isSupport) {
-          const aMain = knowsMainRoles(a) ? 0 : 1
-          const bMain = knowsMainRoles(b) ? 0 : 1
-          if (aMain !== bMain) return aMain - bMain
-        }
-        // Quién lleva menos turnos totales este mes
+        // 1º: quién lleva menos turnos totales este mes
+        // (los de apoyo puro saldrán solos porque los todo-terreno ya tienen más turnos)
         const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
         if (totalDiff !== 0) return totalDiff
-        // Quién ha hecho menos veces este rol en concreto
+        // 2º: quién ha hecho menos veces este rol en concreto
         const roleDiff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
         return roleDiff !== 0 ? roleDiff : Math.random() - 0.5
       })
