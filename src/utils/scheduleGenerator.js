@@ -54,11 +54,19 @@ function buildCounts(people, existingSchedules) {
  * @param {Array} people - personas activas con { id, name, skills[] }
  * @param {Array} existingSchedules - horarios ya guardados para contar rotación justa
  */
+const SUPPORT_ROLES = new Set(['auditorio', 'entrada', 'parking'])
+const MAIN_ROLES    = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
+
+/** Devuelve true si la persona SOLO tiene habilidades de apoyo (no sabe audio/video/micro) */
+function isSupportOnly(person) {
+  return !person.skills?.some(s => MAIN_ROLES.has(s))
+}
+
 export function generateSchedule(scheduleDates, people, existingSchedules = []) {
   const activePeople = people.filter(p => p.active !== false)
   const counts = buildCounts(activePeople, existingSchedules)
 
-  // Total de turnos asignados en esta generación por persona (para repartir carga global)
+  // Total de turnos asignados en esta generación por persona
   const totalThisMonth = {}
   activePeople.forEach(p => { totalThisMonth[p.id] = 0 })
 
@@ -72,11 +80,19 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       )
       if (!eligible.length) { assignments[role] = null; return }
 
+      const isSupport = SUPPORT_ROLES.has(role)
+
       eligible.sort((a, b) => {
-        // 1º: quién lleva menos turnos totales este mes
+        // Para roles de apoyo: priorizar especialistas (solo saben apoyo)
+        if (isSupport) {
+          const aSpec = isSupportOnly(a) ? 0 : 1
+          const bSpec = isSupportOnly(b) ? 0 : 1
+          if (aSpec !== bSpec) return aSpec - bSpec
+        }
+        // 2º: quién lleva menos turnos totales este mes
         const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
         if (totalDiff !== 0) return totalDiff
-        // 2º: quién ha hecho menos veces este rol en concreto
+        // 3º: quién ha hecho menos veces este rol en concreto
         const roleDiff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
         return roleDiff !== 0 ? roleDiff : Math.random() - 0.5
       })
