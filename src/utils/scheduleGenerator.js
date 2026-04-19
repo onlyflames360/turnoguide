@@ -58,6 +58,10 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
   const activePeople = people.filter(p => p.active !== false)
   const counts = buildCounts(activePeople, existingSchedules)
 
+  // Total de turnos asignados en esta generación por persona (para repartir carga global)
+  const totalThisMonth = {}
+  activePeople.forEach(p => { totalThisMonth[p.id] = 0 })
+
   return scheduleDates.map(({ date, type }) => {
     const assignments = {}
     const assignedToday = new Set()
@@ -68,16 +72,20 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       )
       if (!eligible.length) { assignments[role] = null; return }
 
-      // Ordenar por menos asignaciones en ese rol (rotación justa), desempate aleatorio
       eligible.sort((a, b) => {
-        const diff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
-        return diff !== 0 ? diff : Math.random() - 0.5
+        // 1º: quién lleva menos turnos totales este mes
+        const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
+        if (totalDiff !== 0) return totalDiff
+        // 2º: quién ha hecho menos veces este rol en concreto
+        const roleDiff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
+        return roleDiff !== 0 ? roleDiff : Math.random() - 0.5
       })
 
       const chosen = eligible[0]
       assignments[role] = chosen.id
       assignedToday.add(chosen.id)
       if (counts[chosen.id]) counts[chosen.id][role]++
+      totalThisMonth[chosen.id]++
     })
 
     return {
