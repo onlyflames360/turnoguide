@@ -57,9 +57,9 @@ function buildCounts(people, existingSchedules) {
 const SUPPORT_ROLES = new Set(['auditorio', 'entrada', 'parking'])
 const MAIN_ROLES    = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
 
-/** Devuelve true si la persona SOLO tiene habilidades de apoyo (no sabe audio/video/micro) */
-function isSupportOnly(person) {
-  return !person.skills?.some(s => MAIN_ROLES.has(s))
+/** Devuelve true si la persona también sabe hacer roles principales (es todo-terreno) */
+function knowsMainRoles(person) {
+  return person.skills?.some(s => MAIN_ROLES.has(s))
 }
 
 export function generateSchedule(scheduleDates, people, existingSchedules = []) {
@@ -83,16 +83,17 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       const isSupport = SUPPORT_ROLES.has(role)
 
       eligible.sort((a, b) => {
-        // Para roles de apoyo: priorizar especialistas (solo saben apoyo)
+        // Para roles de apoyo: priorizar todo-terreno primero,
+        // los que solo saben apoyo son el refuerzo
         if (isSupport) {
-          const aSpec = isSupportOnly(a) ? 0 : 1
-          const bSpec = isSupportOnly(b) ? 0 : 1
-          if (aSpec !== bSpec) return aSpec - bSpec
+          const aMain = knowsMainRoles(a) ? 0 : 1
+          const bMain = knowsMainRoles(b) ? 0 : 1
+          if (aMain !== bMain) return aMain - bMain
         }
-        // 2º: quién lleva menos turnos totales este mes
+        // Quién lleva menos turnos totales este mes
         const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
         if (totalDiff !== 0) return totalDiff
-        // 3º: quién ha hecho menos veces este rol en concreto
+        // Quién ha hecho menos veces este rol en concreto
         const roleDiff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
         return roleDiff !== 0 ? roleDiff : Math.random() - 0.5
       })
