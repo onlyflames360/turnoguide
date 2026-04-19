@@ -16,7 +16,7 @@ export function exportSchedulePdf(schedules, people, month, year) {
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175) // blue-800
   doc.setFont('helvetica', 'bold')
-  doc.text('Congregación Villajoyosa', 148, 14, { align: 'center' })
+  doc.text('Congregación La Barbera', 148, 14, { align: 'center' })
 
   doc.setFontSize(12)
   doc.setTextColor(71, 85, 105) // slate-500
