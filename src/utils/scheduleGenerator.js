@@ -67,9 +67,17 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
     const assignedToday = new Set()
 
     ROLE_KEYS.forEach(role => {
-      const eligible = activePeople.filter(p =>
-        p.skills?.includes(role) && !assignedToday.has(p.id)
+      // Preferir personas bajo el límite de 2; si no hay, coger el menos usado como fallback
+      let eligible = activePeople.filter(p =>
+        p.skills?.includes(role) &&
+        !assignedToday.has(p.id) &&
+        (counts[p.id]?.[role] ?? 0) < 2
       )
+      if (!eligible.length) {
+        eligible = activePeople.filter(p =>
+          p.skills?.includes(role) && !assignedToday.has(p.id)
+        )
+      }
       if (!eligible.length) { assignments[role] = null; return }
 
       eligible.sort((a, b) => {
