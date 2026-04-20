@@ -162,15 +162,29 @@ exports.onSolicitudRespondida = onDocumentUpdated(
 exports.dailyReminders = onSchedule(
   { schedule: '0 10 * * *', timeZone: 'Europe/Madrid', region: 'europe-west1' },
   async () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(0, 0, 0, 0)
-    const dayAfter = new Date(tomorrow)
-    dayAfter.setDate(dayAfter.getDate() + 1)
+    // Las fechas se guardan como medianoche hora Madrid (UTC+1/+2).
+    // Calculamos el rango UTC equivalente a "mañana en Madrid" para no disparar con 2 días de antelación.
+    const getMadridStr = (d) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(d)
+
+    function madridMidnightUTC(dateStr) {
+      for (const off of ['+02:00', '+01:00']) {
+        const d = new Date(`${dateStr}T00:00:00${off}`)
+        if (getMadridStr(d) === dateStr) return d
+      }
+      return new Date(`${dateStr}T00:00:00+01:00`)
+    }
+
+    const now = new Date()
+    const [y, m, d] = getMadridStr(now).split('-').map(Number)
+    const tomorrowMadrid  = getMadridStr(new Date(Date.UTC(y, m - 1, d + 1, 12)))
+    const dayAfterMadrid  = getMadridStr(new Date(Date.UTC(y, m - 1, d + 2, 12)))
+
+    const tomorrowStart = madridMidnightUTC(tomorrowMadrid)
+    const tomorrowEnd   = madridMidnightUTC(dayAfterMadrid)
 
     const schedSnap = await db.collection('schedules')
-      .where('date', '>=', tomorrow.toISOString())
-      .where('date', '<', dayAfter.toISOString())
+      .where('date', '>=', tomorrowStart.toISOString())
+      .where('date', '<', tomorrowEnd.toISOString())
       .get()
 
     if (schedSnap.empty) return
