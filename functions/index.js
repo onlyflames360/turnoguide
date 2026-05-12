@@ -45,12 +45,16 @@ async function sendPush(token, title, body) {
 async function sendReminderPush(token, rolesText, assignments) {
   if (!token) return
   try {
+    const first = assignments[0] ?? {}
+    const dateStr = first.scheduleDate
+      ? new Date(first.scheduleDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'Europe/Madrid' })
+      : 'mañana'
     await messaging.send({
       token,
       data: {
         type: 'reminder',
-        title: '📅 Turno mañana',
-        body: `Tienes ${rolesText}. ¿Puedes venir?`,
+        title: `📅 Turno mañana — ${dateStr}`,
+        body: `Te toca: ${rolesText}. ¿Puedes venir?`,
         assignments: JSON.stringify(assignments),
       },
       webpush: {
