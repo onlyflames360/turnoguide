@@ -229,8 +229,7 @@ exports.dailyReminders = onSchedule(
 
     const sends = []
     tokenData.forEach(({ roles, assignments }, token) => {
-      const rolesText = roles.join(' y ')
-      sends.push(sendReminderPush(token, rolesText, assignments))
+      sends.push(sendReminderPush(token, roles[0], assignments))
     })
 
     await Promise.all(sends)
