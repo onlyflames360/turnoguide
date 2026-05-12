@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { ROLES } from '../utils/scheduleGenerator'
 
@@ -37,6 +37,16 @@ useEffect(() => {
     }
   }
 
+  async function deleteResponse(id) {
+    await deleteDoc(doc(db, 'responses', id))
+  }
+
+  async function deleteAll() {
+    for (const r of filtered) {
+      await deleteDoc(doc(db, 'responses', r.id))
+    }
+  }
+
   const filtered = responses.filter(r => filter === 'all' || r.response === filter)
   const unseenCount = responses.filter(r => !r.seen && r.response === 'nopuedo').length
 
@@ -52,6 +62,11 @@ useEffect(() => {
           {unseenCount > 0 && (
             <button onClick={markAllSeen} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200">
               Marcar todo visto
+            </button>
+          )}
+          {filtered.length > 0 && (
+            <button onClick={deleteAll} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200">
+              🗑 Borrar todo
             </button>
           )}
         </div>
@@ -142,6 +157,12 @@ useEffect(() => {
                       ✓ Visto
                     </button>
                   )}
+                  <button
+                    onClick={() => deleteResponse(r.id)}
+                    className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 whitespace-nowrap"
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
             </div>

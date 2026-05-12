@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import { ROLES } from '../utils/scheduleGenerator'
@@ -59,6 +59,13 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
 
   const pendingCount = responses.filter(r => !r.resolved).length
   const resolvedCount = responses.filter(r => r.resolved).length
+
+  async function deleteResponse(r) {
+    // Borrar también las solicitudes relacionadas
+    const relSols = solicitudes.filter(s => s.responseId === r.id)
+    for (const s of relSols) await deleteDoc(doc(db, 'solicitudes', s.id))
+    await deleteDoc(doc(db, 'responses', r.id))
+  }
 
   function openModal(response) {
     const schedule = schedules.find(s => s.id === response.scheduleId)
@@ -179,13 +186,21 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
                   </span>
                   <span className="text-xs text-slate-500">{timeAgo(r.createdAt)}</span>
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                  role?.section === 'audioVideo' ? 'bg-blue-100 text-blue-700'
-                  : role?.section === 'acomodadores' ? 'bg-green-100 text-green-700'
-                  : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {role?.label ?? r.roleKey}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                    role?.section === 'audioVideo' ? 'bg-blue-100 text-blue-700'
+                    : role?.section === 'acomodadores' ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {role?.label ?? r.roleKey}
+                  </span>
+                  <button
+                    onClick={() => deleteResponse(r)}
+                    className="text-xs px-2 py-0.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 border border-red-200"
+                  >
+                    🗑
+                  </button>
+                </div>
               </div>
 
               {/* Body */}
