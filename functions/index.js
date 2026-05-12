@@ -1,7 +1,8 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore')
 const { onSchedule } = require('firebase-functions/v2/scheduler')
+const { onRequest } = require('firebase-functions/v2/https')
 const { initializeApp } = require('firebase-admin/app')
-const { getFirestore } = require('firebase-admin/firestore')
+const { getFirestore, FieldValue } = require('firebase-admin/firestore')
 const { getMessaging } = require('firebase-admin/messaging')
 
 initializeApp()
@@ -12,6 +13,9 @@ const ROLE_LABELS = {
   audio: 'Audio', video: 'Video', micro1: 'Micro 1', micro2: 'Micro 2',
   plataforma: 'Plataforma', auditorio: 'Auditorio', entrada: 'Entrada', parking: 'Vehículos'
 }
+const ROLE_KEYS = Object.keys(ROLE_LABELS)
+const AV_ROLES  = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
+const AC_ROLES  = new Set(['auditorio', 'entrada', 'parking'])
 
 const APP_URL = 'https://la-barbera.web.app'
 
@@ -67,10 +71,79 @@ async function sendReminderPush(token, rolesText, assignments) {
   }
 }
 
-/** Tokens FCM de ayudantes (coordinadores no reciben estos pushes) */
+/** Tokens de todos los ayudantes (ambas secciones) */
 async function getCoordinatorTokens() {
-  const snap = await db.collection('users').where('role', '==', 'ayudante').get()
+  const [av, ac] = await Promise.all([
+    db.collection('users').where('role', '==', 'ayudante_av').get(),
+    db.collection('users').where('role', '==', 'ayudante_ac').get(),
+  ])
+  return [...av.docs, ...ac.docs].map(d => d.data().fcmToken).filter(Boolean)
+}
+
+/** Tokens del ayudante responsable de un rol concreto */
+async function getSectionTokens(roleKey) {
+  const role = AV_ROLES.has(roleKey) ? 'ayudante_av' : 'ayudante_ac'
+  const snap = await db.collection('users').where('role', '==', role).get()
   return snap.docs.map(d => d.data().fcmToken).filter(Boolean)
+}
+
+/** Busca el siguiente candidato y crea una solicitud automática */
+async function autoAssignSubstitute(responseId, roleKey, scheduleId, scheduleDate, dayType, personName) {
+  const settingsSnap = await db.collection('settings').doc('global').get()
+  if (!settingsSnap.data()?.autoSubstitute) return
+
+  const [peopleSnap, triedSnap, responseSnap] = await Promise.all([
+    db.collection('people').get(),
+    db.collection('solicitudes').where('responseId', '==', responseId).get(),
+    db.collection('responses').doc(responseId).get(),
+  ])
+
+  const triedIds = new Set(triedSnap.docs.map(d => d.data().requestedPersonId))
+  const noPuedoPersonId = responseSnap.data()?.personId
+  if (noPuedoPersonId) triedIds.add(noPuedoPersonId)
+
+  const eligible = peopleSnap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(p => p.active !== false && p.skills?.includes(roleKey) && !triedIds.has(p.id))
+
+  const roleLabel = ROLE_LABELS[roleKey] ?? roleKey
+  const dateStr = new Date(scheduleDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })
+
+  if (!eligible.length) {
+    const tokens = await getSectionTokens(roleKey)
+    await Promise.all(tokens.map(t => sendPush(t,
+      `⚠️ Sin candidatos — ${personName}`,
+      `No hay más candidatos para ${roleLabel} el ${dayType} (${dateStr}). Gestión manual necesaria.`
+    )))
+    return
+  }
+
+  // Elegir el candidato con menos asignaciones este mes
+  const schedSnap = await db.collection('schedules').get()
+  const counts = {}
+  eligible.forEach(p => { counts[p.id] = 0 })
+  schedSnap.docs.forEach(s => {
+    const d = s.data()
+    if (!d.isAssamblea) {
+      ROLE_KEYS.forEach(r => {
+        const pid = d.assignments?.[r]
+        if (pid && counts[pid] !== undefined) counts[pid]++
+      })
+    }
+  })
+  const candidate = [...eligible].sort((a, b) => (counts[a.id] ?? 0) - (counts[b.id] ?? 0))[0]
+
+  await db.collection('solicitudes').add({
+    scheduleId, scheduleDate, dayType, roleKey, roleLabel,
+    responseId,
+    requestedPersonId: candidate.id,
+    requestedPersonName: candidate.name,
+    requestedByName: '🤖 Auto',
+    status: 'pending',
+    isAuto: true,
+    createdAt: FieldValue.serverTimestamp(),
+    answeredAt: null,
+  })
 }
 
 /** Token FCM de un usuario por nombre */
@@ -80,7 +153,7 @@ async function getTokenByName(name) {
 }
 
 /**
- * FUNCIÓN 1: Cuando alguien marca "No puedo" → push a coordinadores y ayudantes
+ * FUNCIÓN 1: Cuando alguien marca "No puedo" → push al ayudante de sección + auto-sustituto
  */
 exports.onNoPuedo = onDocumentCreated(
   { document: 'responses/{responseId}', region: 'europe-west1' },
@@ -88,18 +161,21 @@ exports.onNoPuedo = onDocumentCreated(
     const data = event.data.data()
     if (data.response !== 'nopuedo') return
 
-    const tokens = await getCoordinatorTokens()
-    if (!tokens.length) return
+    const responseId = event.params.responseId
+    const tokens = await getSectionTokens(data.roleKey)
 
-    const dateStr = new Date(data.scheduleDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })
-    const roleLabel = ROLE_LABELS[data.roleKey] ?? data.roleKey
+    if (tokens.length) {
+      const dateStr = new Date(data.scheduleDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })
+      const roleLabel = ROLE_LABELS[data.roleKey] ?? data.roleKey
+      await Promise.all(tokens.map(token =>
+        sendPush(token,
+          `❌ No disponible — ${data.personName}`,
+          `No puede el ${data.dayType} (${dateStr}) en ${roleLabel}. Buscando sustituto...`
+        )
+      ))
+    }
 
-    await Promise.all(tokens.map(token =>
-      sendPush(token,
-        `❌ No disponible — ${data.personName}`,
-        `No puede el ${data.dayType} (${dateStr}) en ${roleLabel}. Busca sustituto.`
-      )
-    ))
+    await autoAssignSubstitute(responseId, data.roleKey, data.scheduleId, data.scheduleDate, data.dayType, data.personName)
   }
 )
 
@@ -153,9 +229,10 @@ exports.onSolicitudRespondida = onDocumentUpdated(
       await Promise.all(tokens.map(token =>
         sendPush(token,
           `❌ ${after.requestedPersonName} no puede`,
-          `No puede cubrir ${after.roleLabel} el ${after.dayType} (${dateStr}). Busca otro sustituto.`
+          `No puede cubrir ${after.roleLabel} el ${after.dayType} (${dateStr}). Buscando otro candidato...`
         )
       ))
+      await autoAssignSubstitute(after.responseId, after.roleKey, after.scheduleId, after.scheduleDate, after.dayType, after.requestedPersonName)
     }
   }
 )
@@ -234,5 +311,20 @@ exports.dailyReminders = onSchedule(
 
     await Promise.all(sends)
     console.log(`Recordatorios enviados: ${sends.length}`)
+  }
+)
+
+/**
+ * MIGRACIÓN: Renombra users con role='ayudante' → role='ayudante_av'
+ * Llamar una sola vez: GET /migrateAyudante
+ */
+exports.migrateAyudante = onRequest(
+  { region: 'europe-west1' },
+  async (req, res) => {
+    const snap = await db.collection('users').where('role', '==', 'ayudante').get()
+    const batch = db.batch()
+    snap.docs.forEach(d => batch.update(d.ref, { role: 'ayudante_av' }))
+    await batch.commit()
+    res.json({ migrated: snap.size })
   }
 )

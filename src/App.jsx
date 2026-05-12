@@ -4,6 +4,8 @@ import Login from './pages/Login'
 import UserDashboard from './pages/UserDashboard'
 import CoordinatorDashboard from './pages/CoordinatorDashboard'
 
+const AYUDANTE_ROLES = ['ayudante_av', 'ayudante_ac', 'ayudante']
+
 function homeFor(role) {
   return role === 'coordinador' ? '/coordinator' : '/dashboard'
 }
@@ -30,7 +32,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to={homeFor(user.role)} replace /> : <Login />} />
-      <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['usuario', 'ayudante']}><UserDashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['usuario', 'ayudante_av', 'ayudante_ac', 'ayudante']}><UserDashboard /></ProtectedRoute>} />
       <Route path="/coordinator" element={<ProtectedRoute allowedRoles={['coordinador']}><CoordinatorDashboard /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

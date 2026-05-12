@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, addDoc, deleteDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import { ROLES } from '../utils/scheduleGenerator'
 import ChangeModal from './ChangeModal'
+
+const AV_ROLE_KEYS = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
+const AC_ROLE_KEYS = new Set(['auditorio', 'entrada', 'parking'])
 
 function formatDate(isoStr) {
   if (!isoStr) return ''
@@ -22,13 +25,15 @@ function timeAgo(ts) {
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
 }
 
-export default function SubstituteTab({ schedules, people, onBadgeChange }) {
+export default function SubstituteTab({ schedules, people, onBadgeChange, roleSection }) {
   const { user } = useAuth()
   const [responses, setResponses] = useState([])
   const [solicitudes, setSolicitudes] = useState([]) // todas las solicitudes
   const [filter, setFilter] = useState('pending')
   const [modalData, setModalData] = useState(null)
   const [sending, setSending] = useState(false)
+  const [autoSub, setAutoSub] = useState(false)
+  const [togglingAuto, setTogglingAuto] = useState(false)
 
   // Escuchar respuestas "No puedo"
   useEffect(() => {
@@ -38,10 +43,12 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(r => r.response === 'nopuedo' && r.scheduleId !== 'test')
       setResponses(all)
-      const pending = all.filter(r => !r.resolved).length
-      onBadgeChange?.(pending)
+      const sectionAll = roleSection
+        ? all.filter(r => roleSection === 'av' ? AV_ROLE_KEYS.has(r.roleKey) : AC_ROLE_KEYS.has(r.roleKey))
+        : all
+      onBadgeChange?.(sectionAll.filter(r => !r.resolved).length)
     })
-  }, [])
+  }, [roleSection])
 
   // Escuchar solicitudes de sustitución
   useEffect(() => {
@@ -51,14 +58,35 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
     })
   }, [])
 
-  const filtered = responses.filter(r => {
+  // Leer ajuste auto-sustituto
+  useEffect(() => {
+    getDoc(doc(db, 'settings', 'global')).then(d => {
+      setAutoSub(d.data()?.autoSubstitute ?? false)
+    })
+  }, [])
+
+  async function toggleAutoSub() {
+    setTogglingAuto(true)
+    const newVal = !autoSub
+    await setDoc(doc(db, 'settings', 'global'), { autoSubstitute: newVal }, { merge: true })
+    setAutoSub(newVal)
+    setTogglingAuto(false)
+  }
+
+  // Filtrar por sección del ayudante
+  const sectionResponses = responses.filter(r => {
+    if (!roleSection) return true
+    return roleSection === 'av' ? AV_ROLE_KEYS.has(r.roleKey) : AC_ROLE_KEYS.has(r.roleKey)
+  })
+
+  const filtered = sectionResponses.filter(r => {
     if (filter === 'pending') return !r.resolved
     if (filter === 'resolved') return !!r.resolved
     return true
   })
 
-  const pendingCount = responses.filter(r => !r.resolved).length
-  const resolvedCount = responses.filter(r => r.resolved).length
+  const pendingCount = sectionResponses.filter(r => !r.resolved).length
+  const resolvedCount = sectionResponses.filter(r => r.resolved).length
 
   async function deleteResponse(r) {
     // Borrar también las solicitudes relacionadas
@@ -111,7 +139,22 @@ export default function SubstituteTab({ schedules, people, onBadgeChange }) {
           <h3 className="font-bold text-slate-800 text-base">Gestión de sustitutos</h3>
           <p className="text-slate-500 text-xs mt-0.5">Envía solicitudes a candidatos y gestiona las respuestas</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          {/* Toggle auto-sustituto */}
+          <button
+            onClick={toggleAutoSub}
+            disabled={togglingAuto}
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${
+              autoSub
+                ? 'bg-green-100 border-green-300 text-green-700 hover:bg-green-200'
+                : 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200'
+            }`}
+          >
+            <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${autoSub ? 'bg-green-500' : 'bg-slate-300'}`}>
+              <span className={`w-3 h-3 bg-white rounded-full shadow transition-transform ${autoSub ? 'translate-x-3' : ''}`} />
+            </span>
+            Auto
+          </button>
           <div className="text-center bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
             <p className="text-lg font-bold text-red-600 leading-none">{pendingCount}</p>
             <p className="text-xs text-red-500 mt-0.5">Pendientes</p>

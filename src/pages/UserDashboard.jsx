@@ -23,7 +23,8 @@ export default function UserDashboard() {
   const [substBadge, setSubstBadge] = useState(0)
   const [mySolicitudes, setMySolicitudes] = useState([])
   const [answeringId, setAnsweringId] = useState(null)
-  const isAyudante = user?.role === 'ayudante'
+  const isAyudante = user?.role === 'ayudante_av' || user?.role === 'ayudante_ac' || user?.role === 'ayudante'
+  const roleSection = user?.role === 'ayudante_av' ? 'av' : user?.role === 'ayudante_ac' ? 'ac' : null
 
   const now = new Date()
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
@@ -251,6 +252,7 @@ export default function UserDashboard() {
               schedules={schedules}
               people={people}
               onBadgeChange={setSubstBadge}
+              roleSection={roleSection}
             />
           </div>
         )}
