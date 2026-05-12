@@ -92,6 +92,7 @@ export default function Login() {
             src="/logo.png"
             alt="TurnoGuide"
             className="h-40 w-40 mx-auto mb-4"
+            style={{ mixBlendMode: 'multiply' }}
           />
           <h1 className="text-3xl font-bold text-white tracking-tight">TurnoGuide</h1>
           <p className="text-blue-200 text-sm mt-1">Turnos de Audio y Acomodadores</p>
