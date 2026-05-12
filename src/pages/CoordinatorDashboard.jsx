@@ -161,11 +161,9 @@ export default function CoordinatorDashboard() {
   const today = new Date(); today.setHours(0,0,0,0)
   const upcoming = schedules.filter(s => new Date(s.date) >= today && !s.isAssamblea).length
   const activePeople = people.filter(p => p.active !== false).length
-
-  const today2 = new Date(); today2.setHours(0,0,0,0)
   const myUpcoming = schedules.filter(s => {
     if (s.isAssamblea || !myPersonId) return false
-    return new Date(s.date) >= today2 && Object.values(s.assignments || {}).includes(myPersonId)
+    return new Date(s.date) >= today && Object.values(s.assignments || {}).includes(myPersonId)
   }).slice(0, 5)
 
   const TABS = [

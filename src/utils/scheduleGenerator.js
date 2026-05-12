@@ -6,7 +6,7 @@ export const ROLES = [
   { key: 'plataforma', label: 'Plataforma', section: 'audioVideo' },
   { key: 'auditorio',  label: 'Auditorio',  section: 'acomodadores' },
   { key: 'entrada',    label: 'Entrada',    section: 'acomodadores' },
-  { key: 'parking',    label: 'Vehículos',  section: 'parking' },
+  { key: 'parking',    label: 'Vehículos',  section: 'acomodadores' },
 ]
 
 export const ROLE_KEYS = ROLES.map(r => r.key)

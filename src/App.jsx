@@ -4,8 +4,6 @@ import Login from './pages/Login'
 import UserDashboard from './pages/UserDashboard'
 import CoordinatorDashboard from './pages/CoordinatorDashboard'
 
-const AYUDANTE_ROLES = ['ayudante_av', 'ayudante_ac', 'ayudante']
-
 function homeFor(role) {
   return role === 'coordinador' ? '/coordinator' : '/dashboard'
 }

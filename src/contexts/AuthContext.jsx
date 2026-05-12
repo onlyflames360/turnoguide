@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { registerFCM } from '../firebase/messaging'
 
@@ -13,10 +13,24 @@ export function AuthProvider({ children }) {
     const saved = localStorage.getItem('tg_user')
     if (saved) {
       try {
-        const userData = JSON.parse(saved)
-        setUser(userData)
-        // Registrar/refrescar token FCM también al restaurar sesión
-        registerFCM(userData.id).catch(() => {})
+        const cached = JSON.parse(saved)
+        // Releer de Firestore para recoger cambios de rol (ej. migración ayudante → ayudante_av)
+        getDoc(doc(db, 'users', cached.id)).then(snap => {
+          if (snap.exists()) {
+            const fresh = { id: snap.id, ...snap.data() }
+            setUser(fresh)
+            localStorage.setItem('tg_user', JSON.stringify(fresh))
+            registerFCM(fresh.id).catch(() => {})
+          } else {
+            localStorage.removeItem('tg_user')
+            setLoading(false)
+          }
+        }).catch(() => {
+          // Si falla la red, usar datos cacheados
+          setUser(cached)
+          registerFCM(cached.id).catch(() => {})
+        }).finally(() => setLoading(false))
+        return
       } catch { localStorage.removeItem('tg_user') }
     }
     setLoading(false)

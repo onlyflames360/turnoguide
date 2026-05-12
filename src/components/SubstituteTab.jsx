@@ -171,7 +171,7 @@ export default function SubstituteTab({ schedules, people, onBadgeChange, roleSe
         {[
           { key: 'pending', label: '🔴 Pendientes', count: pendingCount },
           { key: 'resolved', label: '✅ Resueltos', count: resolvedCount },
-          { key: 'all', label: 'Todos', count: responses.length },
+          { key: 'all', label: 'Todos', count: sectionResponses.length },
         ].map(f => (
           <button
             key={f.key}
