@@ -10,8 +10,23 @@
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    /* Evitar rebote/scroll elástico en iOS */
+    overscroll-behavior: none;
+    /* Mejor renderizado de texto en móvil */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Evitar highlight azul al tocar en móvil */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Inputs no hacen zoom en iOS (font-size mínimo 16px) */
+  input, select, textarea {
+    font-size: max(16px, 1em);
+  }
 }
 
 @layer components {
