@@ -213,7 +213,7 @@ exports.onSolicitudRespondida = onDocumentUpdated(
     if (before.status !== 'pending') return
     if (after.status !== 'accepted' && after.status !== 'rejected') return
 
-    const tokens = await getCoordinatorTokens()
+    const tokens = await getSectionTokens(after.roleKey)
     if (!tokens.length) return
 
     const dateStr = new Date(after.scheduleDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })
