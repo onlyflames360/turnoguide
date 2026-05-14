@@ -113,7 +113,7 @@ useEffect(() => {
           return (
             <div
               key={r.id}
-              className={`rounded-xl border p-4 transition-all ${
+              className={`list-row rounded-xl border p-4 ${
                 isUnseen
                   ? 'border-red-300 bg-red-50'
                   : isNoPuedo
@@ -129,7 +129,7 @@ useEffect(() => {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-800 text-sm">{r.personName}</p>
-                      {isUnseen && <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">Nuevo</span>}
+                      {isUnseen && <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full badge-new">Nuevo</span>}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {isNoPuedo ? '❌ No puede' : '✅ Puede'} · <span className="font-medium">{role?.label ?? r.roleKey}</span>

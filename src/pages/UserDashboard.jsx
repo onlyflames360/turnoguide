@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, onSnapshot, query, orderBy, where, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
@@ -41,8 +41,10 @@ export default function UserDashboard() {
     return () => { unsubSched(); unsubPeople() }
   }, [])
 
-  const myPerson = people.find(p => p.name === user?.name)
-  const myPersonId = myPerson?.id ?? null
+  const myPersonId = useMemo(
+    () => people.find(p => p.name === user?.name)?.id ?? null,
+    [people, user?.name]
+  )
 
   // Cargar mis respuestas previas
   useEffect(() => {
@@ -133,18 +135,18 @@ export default function UserDashboard() {
     }
   }
 
-  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
 
-  const myUpcoming = schedules.filter(s => {
+  const myUpcoming = useMemo(() => schedules.filter(s => {
     if (s.isAssamblea || !myPersonId) return false
     const d = new Date(s.date)
     return d >= today && Object.values(s.assignments || {}).includes(myPersonId)
-  }).slice(0, 5)
+  }).slice(0, 5), [schedules, myPersonId, today])
 
-  const filteredSchedules = schedules.filter(s => {
+  const filteredSchedules = useMemo(() => schedules.filter(s => {
     const d = new Date(s.date)
     return d.getMonth() + 1 === viewMonth && d.getFullYear() === viewYear
-  })
+  }), [schedules, viewMonth, viewYear])
 
   function prevMonth() {
     if (viewMonth === 1) { setViewMonth(12); setViewYear(y => y - 1) } else setViewMonth(m => m - 1)
@@ -159,8 +161,8 @@ export default function UserDashboard() {
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
         {/* Bienvenida */}
-        <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-5 text-white">
-          <h2 className="text-xl font-bold">Hola, {user?.name?.split(' ')[0]} 👋</h2>
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-5 text-white shadow-sm fade-in">
+          <h2 className="text-xl font-bold tracking-tight">Hola, {user?.name?.split(' ')[0]} 👋</h2>
           <p className="text-blue-200 text-sm mt-1">
             IMPORTANTE: Por favor llegar <span className="text-white font-semibold">30 min antes</span> de empezar la reunión
           </p>
@@ -219,7 +221,7 @@ export default function UserDashboard() {
             >
               🔔 Avisos
               {notifBadge > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold badge-new">
                   {notifBadge > 9 ? '9+' : notifBadge}
                 </span>
               )}
@@ -230,7 +232,7 @@ export default function UserDashboard() {
             >
               🔄 Sustitutos
               {substBadge > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold badge-new">
                   {substBadge > 9 ? '9+' : substBadge}
                 </span>
               )}
@@ -240,14 +242,14 @@ export default function UserDashboard() {
 
         {/* Tab Notificaciones (ayudante) */}
         {isAyudante && activeTab === 'notificaciones' && (
-          <div className="card">
+          <div key="tab-notificaciones" className="card fade-in">
             <NotificationsTab onBadgeChange={setNotifBadge} />
           </div>
         )}
 
         {/* Tab Sustitutos (ayudante) */}
         {isAyudante && activeTab === 'sustitutos' && (
-          <div className="card">
+          <div key="tab-sustitutos" className="card fade-in">
             <SubstituteTab
               schedules={schedules}
               people={people}
@@ -258,7 +260,7 @@ export default function UserDashboard() {
         )}
 
         {/* Contenido de Mis turnos */}
-        {(!isAyudante || activeTab === 'turnos') && <>
+        {(!isAyudante || activeTab === 'turnos') && <div key="tab-turnos" className="space-y-6 fade-in">
 
         {/* Sin vinculación */}
         {!myPersonId && !loading && (
@@ -362,7 +364,11 @@ export default function UserDashboard() {
             </div>
           </div>
           {loading ? (
-            <div className="text-center py-8 text-slate-400">Cargando horario...</div>
+            <div className="space-y-2.5 py-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="skeleton h-12 w-full" style={{ opacity: 1 - i * 0.15 }} />
+              ))}
+            </div>
           ) : (
             <ScheduleTable
               schedules={filteredSchedules}
@@ -373,7 +379,7 @@ export default function UserDashboard() {
             />
           )}
         </div>
-        </> }
+        </div> }
       </main>
     </div>
   )

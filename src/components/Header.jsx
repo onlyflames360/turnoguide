@@ -3,10 +3,35 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { registerFCM } from '../firebase/messaging'
 
+/* Iconos SVG inline — sin dependencias, tree-shakeable */
+function IconBell() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+    </svg>
+  )
+}
+
+function IconBellOff() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M20 18.69L7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01c-.52.99-.8 2.16-.8 3.42V16l-2 2v1h13.73l2 2L21 19.72l-1-1.03zM12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-7.32V11c0-3.08-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-.15.03-.29.08-.42.12l5.92 9.88z" />
+    </svg>
+  )
+}
+
+function IconBellBlocked() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M17 11c.34 0 .67.03 1 .08V6.87l-1-1V5c0-3.07-1.63-5.64-4.5-6.32V2c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C6.63 3.36 5 5.92 5 9v5l-2 2v1h11.26c-.17-.31-.26-.65-.26-1v-.08c-.31.05-.64.08-.97.08H7v-7c0-2.76 1.35-5 4-5s4 2.24 4 5v1.08c.64-.11 1.31-.08 2-.08zM10 20c0 1.1.9 2 2 2s2-.9 2-2h-4zm8.5-5l1.5 1.5-1.5 1.5L17 16.5 15.5 18 14 16.5l1.5-1.5L14 13.5 15.5 12l1.5 1.5 1.5-1.5 1.5 1.5-1.5 1.5z" />
+    </svg>
+  )
+}
+
 export default function Header() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [pushStatus, setPushStatus] = useState('unknown') // 'on' | 'off' | 'blocked' | 'unknown'
+  const [pushStatus, setPushStatus] = useState('unknown')
 
   useEffect(() => {
     if (!('Notification' in window)) { setPushStatus('off'); return }
@@ -27,48 +52,82 @@ export default function Header() {
     navigate('/login')
   }
 
+  const roleLabel =
+    user?.role === 'coordinador'  ? 'Coordinador' :
+    user?.role === 'ayudante_av'  ? 'A/V'         :
+    user?.role === 'ayudante_ac'  ? 'Acóm.'       :
+    user?.role === 'ayudante'     ? 'Ayudante'     : 'Usuario'
+
+  const badgeClass =
+    user?.role === 'coordinador'            ? 'badge-coord'    :
+    user?.role?.startsWith('ayudante')      ? 'badge-ayudante' : 'badge-user'
+
   return (
-    <header className="bg-gradient-to-r from-blue-700 to-blue-600 shadow-md sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="TurnoGuide" className="h-9 w-9 object-contain" />
-          <div>
-            <span className="text-white font-bold text-base leading-none">TurnoGuide</span>
-            <p className="text-blue-200 text-xs leading-none">Villajoyosa</p>
+    <header className="sticky top-0 z-10 bg-gradient-to-r from-blue-700 to-blue-600
+                       border-b border-blue-500/30 shadow-md shadow-blue-900/10">
+      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+
+        {/* Logo + nombre */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <img
+            src="/logo.png"
+            alt="TurnoGuide"
+            className="h-9 w-9 object-contain shrink-0 drop-shadow-sm"
+          />
+          <div className="min-w-0">
+            <p className="text-white font-bold text-sm leading-none tracking-tight">TurnoGuide</p>
+            <p className="text-blue-200 text-xs leading-none mt-0.5">Villajoyosa</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Indicador push */}
+        {/* Acciones derecha */}
+        <div className="flex items-center gap-2 shrink-0">
+
+          {/* Indicador notificaciones push */}
           {pushStatus === 'on' && (
-            <span title="Notificaciones push activas" className="text-green-300 text-lg">🔔</span>
+            <span
+              title="Notificaciones activas"
+              className="text-green-300 transition-colors"
+            >
+              <IconBell />
+            </span>
           )}
           {pushStatus === 'off' && (
             <button
               onClick={handleEnablePush}
               title="Activar notificaciones push"
-              className="text-yellow-300 hover:text-white text-lg transition-colors"
+              className="text-yellow-300 hover:text-white transition-colors
+                         active:scale-95 duration-150"
             >
-              🔕
+              <IconBellOff />
             </button>
           )}
           {pushStatus === 'blocked' && (
-            <span title="Notificaciones bloqueadas en el navegador" className="text-red-300 text-lg">🚫</span>
+            <span
+              title="Notificaciones bloqueadas en el navegador"
+              className="text-red-300"
+            >
+              <IconBellBlocked />
+            </span>
           )}
 
+          {/* Nombre + rol (solo desktop) */}
           <div className="text-right hidden sm:block">
-            <p className="text-white text-sm font-medium leading-none">{user?.name}</p>
-            <span className={user?.role === 'coordinador' ? 'badge-coord' : (user?.role === 'ayudante_av' || user?.role === 'ayudante_ac' || user?.role === 'ayudante') ? 'badge-ayudante' : 'badge-user'}>
-              {user?.role === 'coordinador' ? 'Coordinador'
-                : user?.role === 'ayudante_av' ? 'Ayudante A/V'
-                : user?.role === 'ayudante_ac' ? 'Ayudante Acóm.'
-                : user?.role === 'ayudante' ? 'Ayudante'
-                : 'Usuario'}
+            <p className="text-white text-sm font-semibold leading-none">
+              {user?.name}
+            </p>
+            <span className={`${badgeClass} mt-0.5 inline-block`}>
+              {roleLabel}
             </span>
           </div>
+
+          {/* Botón salir */}
           <button
             onClick={handleLogout}
-            className="text-blue-200 hover:text-white text-sm border border-blue-400 hover:border-white rounded-lg px-3 py-1 transition-colors"
+            className="text-blue-100 hover:text-white text-sm font-medium
+                       border border-blue-400/50 hover:border-white/70
+                       rounded-lg px-3 py-1.5 ml-1
+                       transition-all duration-150 hover:bg-white/10 active:scale-95"
           >
             Salir
           </button>

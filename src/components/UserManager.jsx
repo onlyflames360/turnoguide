@@ -118,7 +118,7 @@ export default function UserManager({ users, onRefresh }) {
           </div>
         )}
         {users.map(u => (
-          <div key={u.id} className={`flex items-center gap-3 p-3 rounded-xl border bg-white border-slate-200 ${u.id === me?.id ? 'border-blue-300 bg-blue-50' : ''}`}>
+          <div key={u.id} className={`list-row flex items-center gap-3 p-3 rounded-xl border bg-white border-slate-200 ${u.id === me?.id ? 'border-blue-300 bg-blue-50' : ''}`}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0 ${
               u.role === 'coordinador' ? 'bg-gradient-to-br from-pink-500 to-pink-600'
               : u.role === 'ayudante_av' ? 'bg-gradient-to-br from-amber-400 to-amber-600'

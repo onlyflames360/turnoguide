@@ -190,7 +190,7 @@ export default function PeopleManager({ people, onRefresh }) {
         {filtered.map(person => (
           <div
             key={person.id}
-            className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+            className={`list-row flex items-center gap-3 p-3 rounded-xl border ${
               person.active === false ? 'opacity-50 bg-slate-50 border-slate-200' : 'bg-white border-slate-200'
             }`}
           >

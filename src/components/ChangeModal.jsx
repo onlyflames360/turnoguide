@@ -35,8 +35,8 @@ export default function ChangeModal({ schedule, roleKey, people, allSchedules, o
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 modal-backdrop">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-panel">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-700 to-blue-600 rounded-t-2xl p-4 text-white">
           <h3 className="font-bold text-lg">Cambiar asignación</h3>

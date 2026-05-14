@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { ROLES, SECTIONS, formatDateShort } from '../utils/scheduleGenerator'
 import ChangeModal from './ChangeModal'
 
-export default function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId }) {
+function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId }) {
   const [editing, setEditing] = useState(null) // { schedule, roleKey }
   const [saving, setSaving] = useState(false)
 
@@ -274,3 +274,5 @@ export default function ScheduleTable({ schedules, people, allSchedules, isCoord
     </>
   )
 }
+
+export default memo(ScheduleTable)

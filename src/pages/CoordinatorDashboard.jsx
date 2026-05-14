@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { collection, onSnapshot, query, orderBy, where, doc, deleteDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,7 +8,11 @@ import ScheduleGenerator from '../components/ScheduleGenerator'
 import PeopleManager from '../components/PeopleManager'
 import UserManager from '../components/UserManager'
 import NotificationsTab from '../components/NotificationsTab'
-import { exportSchedulePdf } from '../utils/exportPdf'
+// jsPDF se carga solo cuando el usuario pulsa "Descargar PDF" (~95 kB menos en carga inicial)
+async function exportSchedulePdf(...args) {
+  const { exportSchedulePdf: fn } = await import('../utils/exportPdf')
+  return fn(...args)
+}
 import { requestNotificationPermission } from '../utils/notifications'
 import { onForegroundMessage } from '../firebase/messaging'
 import { ROLES } from '../utils/scheduleGenerator'
@@ -57,8 +61,10 @@ export default function CoordinatorDashboard() {
     return unsubFCM
   }, [])
 
-  const myPerson = people.find(p => p.name === user?.name)
-  const myPersonId = myPerson?.id ?? null
+  const myPersonId = useMemo(
+    () => people.find(p => p.name === user?.name)?.id ?? null,
+    [people, user?.name]
+  )
 
   // Mis respuestas previas
   useEffect(() => {
@@ -134,10 +140,10 @@ export default function CoordinatorDashboard() {
     }
   }
 
-  const filteredSchedules = schedules.filter(s => {
+  const filteredSchedules = useMemo(() => schedules.filter(s => {
     const d = new Date(s.date)
     return d.getMonth() + 1 === viewMonth && d.getFullYear() === viewYear
-  })
+  }), [schedules, viewMonth, viewYear])
 
   function prevMonth() {
     if (viewMonth === 1) { setViewMonth(12); setViewYear(y => y - 1) } else setViewMonth(m => m - 1)
@@ -158,13 +164,16 @@ export default function CoordinatorDashboard() {
     setTab('schedule')
   }
 
-  const today = new Date(); today.setHours(0,0,0,0)
-  const upcoming = schedules.filter(s => new Date(s.date) >= today && !s.isAssamblea).length
-  const activePeople = people.filter(p => p.active !== false).length
-  const myUpcoming = schedules.filter(s => {
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
+  const activePeople = useMemo(() => people.filter(p => p.active !== false).length, [people])
+  const upcoming = useMemo(
+    () => schedules.filter(s => new Date(s.date) >= today && !s.isAssamblea).length,
+    [schedules, today]
+  )
+  const myUpcoming = useMemo(() => schedules.filter(s => {
     if (s.isAssamblea || !myPersonId) return false
     return new Date(s.date) >= today && Object.values(s.assignments || {}).includes(myPersonId)
-  }).slice(0, 5)
+  }).slice(0, 5), [schedules, myPersonId, today])
 
   const TABS = [
     { key: 'schedule',       label: '📅 Horario' },
@@ -181,17 +190,23 @@ export default function CoordinatorDashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="card text-center py-4">
-            <p className="text-2xl font-bold text-blue-600">{activePeople}</p>
-            <p className="text-xs text-slate-500 mt-1">Personas activas</p>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-4
+                          text-center text-white shadow-sm
+                          fade-in card-lift">
+            <p className="text-2xl font-bold tabular-nums">{activePeople}</p>
+            <p className="text-xs text-white/75 mt-1 leading-tight">Personas activas</p>
           </div>
-          <div className="card text-center py-4">
-            <p className="text-2xl font-bold text-green-600">{upcoming}</p>
-            <p className="text-xs text-slate-500 mt-1">Turnos próximos</p>
+          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4
+                          text-center text-white shadow-sm
+                          fade-in fade-in-delay-1 card-lift">
+            <p className="text-2xl font-bold tabular-nums">{upcoming}</p>
+            <p className="text-xs text-white/75 mt-1 leading-tight">Turnos próximos</p>
           </div>
-          <div className="card text-center py-4">
-            <p className="text-2xl font-bold text-pink-600">{users.length}</p>
-            <p className="text-xs text-slate-500 mt-1">Usuarios</p>
+          <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl p-4
+                          text-center text-white shadow-sm
+                          fade-in fade-in-delay-2 card-lift">
+            <p className="text-2xl font-bold tabular-nums">{users.length}</p>
+            <p className="text-xs text-white/75 mt-1 leading-tight">Usuarios</p>
           </div>
         </div>
 
@@ -211,7 +226,7 @@ export default function CoordinatorDashboard() {
             >
               {t.label}
               {t.key === 'notifications' && notifBadge > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold badge-new">
                   {notifBadge > 9 ? '9+' : notifBadge}
                 </span>
               )}
@@ -221,7 +236,7 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Horario */}
         {tab === 'schedule' && (
-          <div className="space-y-4">
+          <div key="tab-schedule" className="space-y-4 fade-in">
             <ScheduleGenerator
               people={people.filter(p => p.active !== false)}
               existingSchedules={schedules}
@@ -256,7 +271,15 @@ export default function CoordinatorDashboard() {
               </div>
 
               {loading ? (
-                <div className="text-center py-8 text-slate-400">Cargando...</div>
+                <div className="space-y-2.5 py-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="skeleton h-12 w-full"
+                      style={{ opacity: 1 - i * 0.15 }}
+                    />
+                  ))}
+                </div>
               ) : (
                 <ScheduleTable
                   schedules={filteredSchedules}
@@ -272,7 +295,7 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Mis turnos */}
         {tab === 'myturnos' && (
-          <div className="space-y-4">
+          <div key="tab-myturnos" className="space-y-4 fade-in">
             {/* Solicitudes pendientes */}
             {mySolicitudes.map(sol => (
               <div key={sol.id} className="bg-amber-50 border-2 border-amber-300 rounded-2xl overflow-hidden">
@@ -371,7 +394,7 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Personas */}
         {tab === 'people' && (
-          <div className="card">
+          <div key="tab-people" className="card fade-in">
             <div className="mb-4">
               <h3 className="font-bold text-slate-800 text-base">Gestión de personas</h3>
               <p className="text-slate-500 text-xs mt-1">Añade personas y asígnales habilidades para el generador automático</p>
@@ -382,7 +405,7 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Usuarios */}
         {tab === 'users' && (
-          <div className="card">
+          <div key="tab-users" className="card fade-in">
             <div className="mb-4">
               <h3 className="font-bold text-slate-800 text-base">Gestión de usuarios</h3>
               <p className="text-slate-500 text-xs mt-1">Administra quién puede entrar a la app y con qué rol</p>
@@ -393,7 +416,7 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Notificaciones */}
         {tab === 'notifications' && (
-          <div className="card">
+          <div key="tab-notifications" className="card fade-in">
             <NotificationsTab
               onBadgeChange={setNotifBadge}
               onGoToSchedule={handleGoToSchedule}
