@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { registerFCM } from '../firebase/messaging'
+import { useTheme } from '../hooks/useTheme'
 
 /* Iconos SVG inline — sin dependencias, tree-shakeable */
 function IconBell() {
@@ -28,10 +29,27 @@ function IconBellBlocked() {
   )
 }
 
+function IconSun() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M12 7a5 5 0 1 0 0 10A5 5 0 0 0 12 7zM2 13h2a1 1 0 0 0 0-2H2a1 1 0 0 0 0 2zm18 0h2a1 1 0 0 0 0-2h-2a1 1 0 0 0 0 2zM11 2v2a1 1 0 0 0 2 0V2a1 1 0 0 0-2 0zm0 18v2a1 1 0 0 0 2 0v-2a1 1 0 0 0-2 0zM5.64 6.36a1 1 0 0 0-1.41-1.41L2.81 6.36a1 1 0 0 0 1.41 1.41zm12.73 12.73a1 1 0 0 0-1.41-1.41l-1.41 1.41a1 1 0 0 0 1.41 1.41zm-1.41-13.32a1 1 0 0 0 1.41-1.41l-1.41-1.41a1 1 0 0 0-1.41 1.41zm-12.73 12.73a1 1 0 0 0 1.41 1.41l1.41-1.41a1 1 0 0 0-1.41-1.41z" />
+    </svg>
+  )
+}
+
+function IconMoon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+    </svg>
+  )
+}
+
 export default function Header() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [pushStatus, setPushStatus] = useState('unknown')
+  const { isDark, toggle: toggleTheme } = useTheme()
 
   useEffect(() => {
     if (!('Notification' in window)) { setPushStatus('off'); return }
@@ -110,6 +128,16 @@ export default function Header() {
               <IconBellBlocked />
             </span>
           )}
+
+          {/* Botón tema claro/oscuro */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            className="text-blue-100 hover:text-white transition-colors active:scale-95 duration-150"
+            aria-label={isDark ? 'Modo claro' : 'Modo oscuro'}
+          >
+            {isDark ? <IconSun /> : <IconMoon />}
+          </button>
 
           {/* Nombre + rol (solo desktop) */}
           <div className="text-right hidden sm:block">

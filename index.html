@@ -32,6 +32,11 @@
 
     <title>TurnoGuide</title>
 
+    <!-- Anti-flash: aplica dark class antes de que cargue React -->
+    <script>
+      (function(){try{var t=localStorage.getItem('tg_theme');if(t==='dark'||(t==null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()
+    </script>
+
     <!-- Inter font — preconnect primero para no bloquear render -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

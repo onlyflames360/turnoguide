@@ -156,7 +156,7 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
@@ -208,16 +208,16 @@ export default function UserDashboard() {
 
         {/* Tabs (solo ayudante) */}
         {isAyudante && (
-          <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+          <div className="flex gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
             <button
               onClick={() => setActiveTab('turnos')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'turnos' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'turnos' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               📅 Mis turnos
             </button>
             <button
               onClick={() => setActiveTab('notificaciones')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'notificaciones' ? 'bg-amber-500 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'notificaciones' ? 'bg-amber-500 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               🔔 Avisos
               {notifBadge > 0 && (
@@ -228,7 +228,7 @@ export default function UserDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('sustitutos')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'sustitutos' ? 'bg-red-500 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'sustitutos' ? 'bg-red-500 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               🔄 Sustitutos
               {substBadge > 0 && (
@@ -284,16 +284,16 @@ export default function UserDashboard() {
                     .map(([rk]) => ({ key: rk, label: ROLES.find(r => r.key === rk)?.label ?? rk }))
 
                   return (
-                    <div key={sched.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div key={sched.id} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
                       {/* Header fecha */}
-                      <div className={`flex items-center justify-between px-4 py-2.5 ${sched.dayType === 'Domingo' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                      <div className={`flex items-center justify-between px-4 py-2.5 ${sched.dayType === 'Domingo' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'}`}>
                         <div>
                           <span className="font-bold text-sm">{sched.dayType}</span>
                           <span className="text-sm ml-2 opacity-80">
                             {String(d.getDate()).padStart(2,'0')}/{String(d.getMonth()+1).padStart(2,'0')}
                           </span>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${sched.dayType === 'Domingo' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${sched.dayType === 'Domingo' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
                           {MONTHS[d.getMonth()]}
                         </span>
                       </div>

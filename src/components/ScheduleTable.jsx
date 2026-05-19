@@ -70,39 +70,39 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr>
-              <th className="text-left p-3 bg-slate-100 rounded-tl-lg border-b border-slate-200 w-28">Fecha</th>
+              <th className="text-left p-3 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 rounded-tl-lg border-b border-slate-200 dark:border-slate-700 w-28">Fecha</th>
               {sectionEntries.map(([sec, { label, cols }]) => (
                 cols.map((col, i) => {
                   const role = ROLES.find(r => r.key === col)
                   return (
-                    <th key={col} className={`p-2 text-xs font-semibold border-b border-slate-200 ${
-                      sec === 'audioVideo' ? 'bg-blue-50 text-blue-800' :
-                      sec === 'acomodadores' ? 'bg-green-50 text-green-800' :
-                      'bg-amber-50 text-amber-800'
-                    } ${i === 0 ? 'border-l-2 border-l-slate-300' : ''}`}>
+                    <th key={col} className={`p-2 text-xs font-semibold border-b border-slate-200 dark:border-slate-700 ${
+                      sec === 'audioVideo' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                      sec === 'acomodadores' ? 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                      'bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
+                    } ${i === 0 ? 'border-l-2 border-l-slate-300 dark:border-l-slate-600' : ''}`}>
                       {role?.label}
                     </th>
                   )
                 })
               ))}
-              {isCoordinator && <th className="p-2 bg-slate-100 rounded-tr-lg border-b border-slate-200 w-20 text-xs">Acciones</th>}
+              {isCoordinator && <th className="p-2 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 rounded-tr-lg border-b border-slate-200 dark:border-slate-700 w-20 text-xs">Acciones</th>}
             </tr>
             <tr>
-              <th className="p-1 bg-slate-100 border-b border-slate-200" />
+              <th className="p-1 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700" />
               {sectionEntries.map(([sec, { label, cols }]) => (
                 <th
                   key={sec}
                   colSpan={cols.length}
-                  className={`p-1 text-xs font-bold text-center border-b border-l-2 border-l-slate-300 border-slate-200 ${
-                    sec === 'audioVideo' ? 'bg-blue-100 text-blue-900' :
-                    sec === 'acomodadores' ? 'bg-green-100 text-green-900' :
-                    'bg-amber-100 text-amber-900'
+                  className={`p-1 text-xs font-bold text-center border-b border-l-2 border-l-slate-300 dark:border-l-slate-600 border-slate-200 dark:border-slate-700 ${
+                    sec === 'audioVideo' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200' :
+                    sec === 'acomodadores' ? 'bg-green-100 dark:bg-green-900/40 text-green-900 dark:text-green-200' :
+                    'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200'
                   }`}
                 >
                   {label}
                 </th>
               ))}
-              {isCoordinator && <th className="p-1 bg-slate-100 border-b border-slate-200" />}
+              {isCoordinator && <th className="p-1 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700" />}
             </tr>
           </thead>
           <tbody>
@@ -115,9 +115,9 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
               return (
                 <tr
                   key={sched.id}
-                  className={`border-b border-slate-100 hover:bg-slate-50 ${isSunday ? 'font-semibold' : ''}`}
+                  className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/40 ${isSunday ? 'font-semibold' : ''}`}
                 >
-                  <td className={`p-2 text-xs ${isSunday ? 'text-blue-800' : 'text-slate-600'}`}>
+                  <td className={`p-2 text-xs ${isSunday ? 'text-blue-800 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>
                     <div className="font-semibold">{dayStr}</div>
                     <div>{dateStr}</div>
                   </td>
@@ -130,20 +130,20 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                       return (
                         <td
                           key={col}
-                          className={`p-2 text-xs text-center ${i === 0 ? 'border-l-2 border-l-slate-200' : ''} ${
-                            sched.isAssamblea ? 'bg-slate-100 text-slate-500 italic' : ''
-                          } ${mine ? 'bg-yellow-50' : ''}`}
+                          className={`p-2 text-xs text-center ${i === 0 ? 'border-l-2 border-l-slate-200 dark:border-l-slate-700' : ''} ${
+                            sched.isAssamblea ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 italic' : ''
+                          } ${mine ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}
                         >
                           {!sched.isAssamblea && isCoordinator ? (
                             <button
                               onClick={() => setEditing({ schedule: sched, roleKey: col })}
-                              className={`hover:text-blue-600 hover:underline text-left w-full ${pid ? 'text-slate-700' : 'text-red-400'} ${mine ? 'text-yellow-700 font-bold' : ''}`}
+                              className={`hover:text-blue-600 hover:underline text-left w-full ${pid ? 'text-slate-700 dark:text-slate-200' : 'text-red-400'} ${mine ? 'text-yellow-700 dark:text-yellow-400 font-bold' : ''}`}
                               title="Clic para cambiar"
                             >
                               {name || '—'}
                             </button>
                           ) : (
-                            <span className={mine ? 'font-bold text-yellow-700' : ''}>{name}</span>
+                            <span className={mine ? 'font-bold text-yellow-700 dark:text-yellow-400' : 'dark:text-slate-300'}>{name}</span>
                           )}
                         </td>
                       )
@@ -197,8 +197,8 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
         {schedules.map(sched => {
           const isSunday = sched.dayType === 'Domingo'
           return (
-            <div key={sched.id} className={`rounded-xl border ${isSunday ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'} overflow-hidden`}>
-              <div className={`px-4 py-2 flex items-center justify-between ${isSunday ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <div key={sched.id} className={`rounded-xl border overflow-hidden ${isSunday ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
+              <div className={`px-4 py-2 flex items-center justify-between ${isSunday ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}>
                 <span className="font-bold text-sm">{sched.dayType} {formatDateShort(sched.date)}</span>
                 {isCoordinator && (
                   <div className="flex gap-1">
@@ -236,17 +236,17 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                     const name = personName(pid)
                     const mine = isMe(pid)
                     return (
-                      <div key={role.key} className={`rounded-lg p-2 ${mine ? 'bg-yellow-50 border border-yellow-300' : 'bg-slate-50'}`}>
-                        <p className="text-xs text-slate-400 mb-0.5">{role.label}</p>
+                      <div key={role.key} className={`rounded-lg p-2 ${mine ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700' : 'bg-slate-50 dark:bg-slate-700/50'}`}>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{role.label}</p>
                         {isCoordinator ? (
                           <button
                             onClick={() => setEditing({ schedule: sched, roleKey: role.key })}
-                            className={`text-xs font-medium text-left w-full ${pid ? (mine ? 'text-yellow-700' : 'text-slate-700') : 'text-red-400'} hover:underline`}
+                            className={`text-xs font-medium text-left w-full ${pid ? (mine ? 'text-yellow-700 dark:text-yellow-400' : 'text-slate-700 dark:text-slate-200') : 'text-red-400'} hover:underline`}
                           >
                             {name || '—'}
                           </button>
                         ) : (
-                          <p className={`text-xs font-medium ${mine ? 'text-yellow-700' : 'text-slate-700'}`}>
+                          <p className={`text-xs font-medium ${mine ? 'text-yellow-700 dark:text-yellow-400' : 'text-slate-700 dark:text-slate-200'}`}>
                             {name || '—'}
                           </p>
                         )}

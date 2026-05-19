@@ -36,7 +36,7 @@ export default function ChangeModal({ schedule, roleKey, people, allSchedules, o
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 modal-backdrop">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-panel">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md modal-panel">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-700 to-blue-600 rounded-t-2xl p-4 text-white">
           <h3 className="font-bold text-lg">Cambiar asignación</h3>
@@ -47,13 +47,13 @@ export default function ChangeModal({ schedule, roleKey, people, allSchedules, o
 
         <div className="p-5">
           {/* Actual */}
-          <div className="bg-slate-50 rounded-lg p-3 mb-4 flex items-center gap-3">
+          <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3 mb-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
               {currentPerson?.name?.[0] ?? '?'}
             </div>
             <div>
-              <p className="text-xs text-slate-500">Asignado actualmente</p>
-              <p className="text-sm font-semibold text-slate-800">{currentPerson?.name ?? 'Sin asignar'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Asignado actualmente</p>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{currentPerson?.name ?? 'Sin asignar'}</p>
             </div>
           </div>
 
@@ -103,15 +103,15 @@ export default function ChangeModal({ schedule, roleKey, people, allSchedules, o
                   onClick={() => setSelectedId(selectedId === p.id ? '' : p.id)}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${
                     selectedId === p.id
-                      ? 'bg-blue-50 border-2 border-blue-400'
-                      : 'border border-transparent hover:bg-slate-50'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-400'
+                      : 'border border-transparent hover:bg-slate-50 dark:hover:bg-slate-700'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
                     {p.name[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{p.name}</p>
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{p.name}</p>
                     {!skilled && mode === 'manual' && (
                       <p className="text-xs text-amber-600">⚠️ Sin habilidad en {role?.label}</p>
                     )}
@@ -123,7 +123,7 @@ export default function ChangeModal({ schedule, roleKey, people, allSchedules, o
           </div>
 
           {/* Acciones */}
-          <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+          <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
             <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
             {currentPersonId && (
               <button onClick={handleRemove} className="btn-danger px-3 py-2 text-sm rounded-lg">

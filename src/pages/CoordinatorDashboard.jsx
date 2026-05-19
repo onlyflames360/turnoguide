@@ -184,7 +184,7 @@ export default function CoordinatorDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-5">
 
@@ -211,7 +211,7 @@ export default function CoordinatorDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto">
           {TABS.map(t => (
             <button
               key={t.key}
@@ -220,8 +220,8 @@ export default function CoordinatorDashboard() {
                 tab === t.key
                   ? t.key === 'myturnos'
                     ? 'bg-amber-400 text-white shadow-sm'
-                    : 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                    : 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               {t.label}
@@ -265,7 +265,7 @@ export default function CoordinatorDashboard() {
                 </div>
               </div>
 
-              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-800 flex items-center gap-2">
+              <div className="mb-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-2 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
                 <span>ℹ️</span>
                 <span>Haz clic en cualquier nombre para cambiar la asignación</span>
               </div>
@@ -340,8 +340,8 @@ export default function CoordinatorDashboard() {
                       .filter(([, pid]) => pid === myPersonId)
                       .map(([rk]) => ({ key: rk, label: ROLES.find(r => r.key === rk)?.label ?? rk }))
                     return (
-                      <div key={sched.id} className="border border-slate-200 rounded-xl overflow-hidden">
-                        <div className={`flex items-center justify-between px-4 py-2.5 ${sched.dayType === 'Domingo' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                      <div key={sched.id} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                        <div className={`flex items-center justify-between px-4 py-2.5 ${sched.dayType === 'Domingo' ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'}`}>
                           <div>
                             <span className="font-bold text-sm">{sched.dayType}</span>
                             <span className="text-sm ml-2 opacity-80">
