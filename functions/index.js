@@ -153,7 +153,31 @@ async function getTokenByName(name) {
 }
 
 /**
- * FUNCIÓN 1: Cuando alguien marca "No puedo" → push al ayudante de sección + auto-sustituto
+ * FUNCIÓN 1a: Cuando alguien marca "Puedo" → push al ayudante de su sección
+ */
+exports.onPuedo = onDocumentCreated(
+  { document: 'responses/{responseId}', region: 'europe-west1' },
+  async (event) => {
+    const data = event.data.data()
+    if (data.response !== 'puedo') return
+
+    const tokens = await getSectionTokens(data.roleKey)
+    if (!tokens.length) return
+
+    const dateStr = new Date(data.scheduleDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit' })
+    const roleLabel = ROLE_LABELS[data.roleKey] ?? data.roleKey
+
+    await Promise.all(tokens.map(token =>
+      sendPush(token,
+        `✅ Confirmado — ${data.personName}`,
+        `Puede el ${data.dayType} (${dateStr}) en ${roleLabel}.`
+      )
+    ))
+  }
+)
+
+/**
+ * FUNCIÓN 1b: Cuando alguien marca "No puedo" → push al ayudante de sección + auto-sustituto
  */
 exports.onNoPuedo = onDocumentCreated(
   { document: 'responses/{responseId}', region: 'europe-west1' },
