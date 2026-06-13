@@ -265,7 +265,7 @@ exports.onSolicitudRespondida = onDocumentUpdated(
  * FUNCIÓN 4: Cada día a las 10:00 → recordatorio a usuarios con turno mañana
  */
 exports.dailyReminders = onSchedule(
-  { schedule: '0 10 * * *', timeZone: 'Europe/Madrid', region: 'europe-west1' },
+  { schedule: '0 10 * * 2,6', timeZone: 'Europe/Madrid', region: 'europe-west1' },
   async () => {
     // Las fechas se guardan como medianoche hora Madrid (UTC+1/+2).
     // Calculamos el rango UTC equivalente a "mañana en Madrid" para no disparar con 2 días de antelación.
