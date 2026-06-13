@@ -81,20 +81,21 @@ export default function Header() {
     user?.role?.startsWith('ayudante')      ? 'badge-ayudante' : 'badge-user'
 
   return (
-    <header className="sticky top-0 z-10 bg-gradient-to-r from-blue-700 to-blue-600
-                       border-b border-blue-500/30 shadow-md shadow-blue-900/10">
+    <header className="glass-header">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
 
         {/* Logo + nombre */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <img
-            src="/logo.png"
-            alt="TurnoGuide"
-            className="h-9 w-9 object-contain shrink-0 drop-shadow-sm"
-          />
+          <div className="h-8 w-8 rounded-[10px] bg-gradient-to-br from-indigo-600 to-violet-600
+                          flex items-center justify-center shrink-0"
+               style={{ boxShadow: '0 4px 12px rgba(79,70,229,0.35)' }}>
+            <img src="/logo.png" alt="TurnoGuide" className="h-5 w-5 object-contain" />
+          </div>
           <div className="min-w-0">
-            <p className="text-white font-bold text-sm leading-none tracking-tight">TurnoGuide</p>
-            <p className="text-blue-200 text-xs leading-none mt-0.5">Villajoyosa</p>
+            <p className="text-slate-900 dark:text-white font-extrabold text-sm leading-none tracking-tight">
+              TurnoGuide
+            </p>
+            <p className="text-slate-400 text-xs leading-none mt-0.5">Villajoyosa</p>
           </div>
         </div>
 
@@ -105,7 +106,7 @@ export default function Header() {
           {pushStatus === 'on' && (
             <span
               title="Notificaciones activas"
-              className="text-green-300 transition-colors"
+              className="text-emerald-500 transition-colors"
             >
               <IconBell />
             </span>
@@ -114,7 +115,7 @@ export default function Header() {
             <button
               onClick={handleEnablePush}
               title="Activar notificaciones push"
-              className="text-yellow-300 hover:text-white transition-colors
+              className="text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors
                          active:scale-95 duration-150"
             >
               <IconBellOff />
@@ -123,7 +124,7 @@ export default function Header() {
           {pushStatus === 'blocked' && (
             <span
               title="Notificaciones bloqueadas en el navegador"
-              className="text-red-300"
+              className="text-red-400"
             >
               <IconBellBlocked />
             </span>
@@ -133,7 +134,7 @@ export default function Header() {
           <button
             onClick={toggleTheme}
             title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-            className="text-blue-100 hover:text-white transition-colors active:scale-95 duration-150"
+            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors active:scale-95 duration-150"
             aria-label={isDark ? 'Modo claro' : 'Modo oscuro'}
           >
             {isDark ? <IconSun /> : <IconMoon />}
@@ -141,7 +142,7 @@ export default function Header() {
 
           {/* Nombre + rol (solo desktop) */}
           <div className="text-right hidden sm:block">
-            <p className="text-white text-sm font-semibold leading-none">
+            <p className="text-slate-800 dark:text-slate-100 text-sm font-semibold leading-none">
               {user?.name}
             </p>
             <span className={`${badgeClass} mt-0.5 inline-block`}>
@@ -149,13 +150,23 @@ export default function Header() {
             </span>
           </div>
 
+          {/* Avatar con iniciales */}
+          {user?.name && (
+            <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-indigo-600 to-violet-600
+                            flex items-center justify-center text-white font-bold text-xs shrink-0 hidden sm:flex"
+                 style={{ boxShadow: '0 2px 8px rgba(79,70,229,0.3)' }}>
+              {user.name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
+          )}
+
           {/* Botón salir */}
           <button
             onClick={handleLogout}
-            className="text-blue-100 hover:text-white text-sm font-medium
-                       border border-blue-400/50 hover:border-white/70
-                       rounded-lg px-3 py-1.5 ml-1
-                       transition-all duration-150 hover:bg-white/10 active:scale-95"
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200
+                       text-sm font-medium border border-slate-200 dark:border-slate-600
+                       hover:border-slate-300 dark:hover:border-slate-500
+                       rounded-xl px-3 py-1.5 ml-1
+                       transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 active:scale-95"
           >
             Salir
           </button>
