@@ -76,7 +76,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                   const role = ROLES.find(r => r.key === col)
                   return (
                     <th key={col} className={`p-2 text-xs font-semibold border-b border-slate-200 dark:border-slate-700 ${
-                      sec === 'audioVideo' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                      sec === 'audioVideo' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300' :
                       sec === 'acomodadores' ? 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
                       'bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
                     } ${i === 0 ? 'border-l-2 border-l-slate-300 dark:border-l-slate-600' : ''}`}>
@@ -94,7 +94,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                   key={sec}
                   colSpan={cols.length}
                   className={`p-1 text-xs font-bold text-center border-b border-l-2 border-l-slate-300 dark:border-l-slate-600 border-slate-200 dark:border-slate-700 ${
-                    sec === 'audioVideo' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200' :
+                    sec === 'audioVideo' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200' :
                     sec === 'acomodadores' ? 'bg-green-100 dark:bg-green-900/40 text-green-900 dark:text-green-200' :
                     'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200'
                   }`}
@@ -117,7 +117,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                   key={sched.id}
                   className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/40 ${isSunday ? 'font-semibold' : ''}`}
                 >
-                  <td className={`p-2 text-xs ${isSunday ? 'text-blue-800 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                  <td className={`p-2 text-xs ${isSunday ? 'text-indigo-700 dark:text-indigo-400 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
                     <div className="font-semibold">{dayStr}</div>
                     <div>{dateStr}</div>
                   </td>
@@ -137,7 +137,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                           {!sched.isAssamblea && isCoordinator ? (
                             <button
                               onClick={() => setEditing({ schedule: sched, roleKey: col })}
-                              className={`hover:text-blue-600 hover:underline text-left w-full ${pid ? 'text-slate-700 dark:text-slate-200' : 'text-red-400'} ${mine ? 'text-yellow-700 dark:text-yellow-400 font-bold' : ''}`}
+                              className={`hover:text-indigo-600 hover:underline text-left w-full ${pid ? 'text-slate-700 dark:text-slate-200' : 'text-red-400'} ${mine ? 'text-yellow-700 dark:text-yellow-400 font-bold' : ''}`}
                               title="Clic para cambiar"
                             >
                               {name || '—'}
@@ -156,7 +156,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                         <button
                           onClick={() => toggleAssamblea(sched)}
                           title={sched.isAssamblea ? 'Quitar Asamblea' : 'Marcar como Asamblea'}
-                          className={`text-xs px-2 py-1 rounded ${sched.isAssamblea ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                          className={`text-xs px-2 py-1 rounded-lg ${sched.isAssamblea ? 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100'}`}
                         >
                           {sched.isAssamblea ? '↩' : 'Asam.'}
                         </button>
@@ -197,8 +197,9 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
         {schedules.map(sched => {
           const isSunday = sched.dayType === 'Domingo'
           return (
-            <div key={sched.id} className={`rounded-xl border overflow-hidden ${isSunday ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
-              <div className={`px-4 py-2 flex items-center justify-between ${isSunday ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}>
+            <div key={sched.id} className={`rounded-2xl border overflow-hidden ${isSunday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
+              <div className={`px-4 py-2.5 flex items-center justify-between ${isSunday ? 'text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}
+                   style={isSunday ? { background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' } : {}}>
                 <span className="font-bold text-sm">{sched.dayType} {formatDateShort(sched.date)}</span>
                 {isCoordinator && (
                   <div className="flex gap-1">
