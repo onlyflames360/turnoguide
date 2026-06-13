@@ -155,50 +155,99 @@ export default function UserDashboard() {
     if (viewMonth === 12) { setViewMonth(1); setViewYear(y => y + 1) } else setViewMonth(m => m + 1)
   }
 
+  // Layout constants for aurora hero and segmented tabs
+  const AYUDANTE_TABS = ['turnos', 'notificaciones', 'sustitutos']
+  const activeTabIdx = AYUDANTE_TABS.indexOf(activeTab)
+  const nextSched = myUpcoming[0] ?? null
+  const nextTurnRoles = nextSched && myPersonId
+    ? Object.entries(nextSched.assignments || {})
+        .filter(([, pid]) => pid === myPersonId)
+        .map(([rk]) => ROLES.find(r => r.key === rk)?.label ?? rk)
+        .join(' · ')
+    : ''
+  const nextTurnDate = nextSched
+    ? `${nextSched.dayType} ${String(new Date(nextSched.date).getDate()).padStart(2, '0')} ${MONTHS[new Date(nextSched.date).getMonth()]}`
+    : ''
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
         {/* Bienvenida */}
-        <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-5 text-white shadow-sm fade-in">
-          <h2 className="text-xl font-bold tracking-tight">Hola, {user?.name?.split(' ')[0]} 👋</h2>
-          <p className="text-blue-200 text-sm mt-1">
-            IMPORTANTE: Por favor llegar <span className="text-white font-semibold">30 min antes</span> de empezar la reunión
-          </p>
+        <div className="hero-aurora rounded-2xl fade-in">
+          <div className="relative z-10 p-5">
+            <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-1">
+              Bienvenido
+            </p>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white"
+                style={{ letterSpacing: '-0.04em' }}>
+              Hola, <span className="text-indigo-600 dark:text-indigo-400">{user?.name?.split(' ')[0]}</span> 👋
+            </h2>
+            {myUpcoming.length > 0 && (
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                {myUpcoming.length} turno{myUpcoming.length !== 1 ? 's' : ''} próximo{myUpcoming.length !== 1 ? 's' : ''}
+              </p>
+            )}
+            {nextSched && myPersonId && (
+              <div className="next-turn-card mt-4">
+                <div>
+                  <p className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">
+                    Próximo turno
+                  </p>
+                  <p className="text-lg font-extrabold text-white mt-0.5"
+                     style={{ letterSpacing: '-0.03em' }}>
+                    {nextTurnDate}
+                  </p>
+                  {nextTurnRoles && (
+                    <p className="text-indigo-200 text-xs mt-0.5">{nextTurnRoles}</p>
+                  )}
+                </div>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
+                     style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  🎵
+                </div>
+              </div>
+            )}
+            <div className="inline-flex items-center gap-1.5 mt-3 rounded-full px-3 py-1.5"
+                 style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.20)' }}>
+              <span className="text-red-400 text-xs font-semibold">⚠️ Llegar 30 min antes</span>
+            </div>
+          </div>
         </div>
 
         {/* Solicitudes de sustitución pendientes */}
         {mySolicitudes.length > 0 && (
           <div className="space-y-3">
             {mySolicitudes.map(sol => (
-              <div key={sol.id} className="bg-amber-50 border-2 border-amber-300 rounded-2xl overflow-hidden">
-                <div className="bg-amber-400 px-4 py-2 flex items-center gap-2">
+              <div key={sol.id} className="bg-white dark:bg-slate-800 rounded-[20px] overflow-hidden border border-amber-200 dark:border-amber-900/40"
+                   style={{ boxShadow: '0 0 0 4px rgba(245,158,11,0.06), 0 4px 16px -4px rgba(0,0,0,0.08)' }}>
+                <div className="px-4 py-2.5 flex items-center gap-2"
+                     style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
                   <span className="text-white font-bold text-sm">🤝 Solicitud de sustitución</span>
                 </div>
                 <div className="px-4 py-4">
-                  <p className="text-slate-700 text-sm mb-1">
-                    <span className="font-bold">{sol.requestedByName}</span> te pide que cubras el turno de:
+                  <p className="text-slate-600 dark:text-slate-300 text-sm mb-3">
+                    <span className="font-bold text-slate-900 dark:text-white">{sol.requestedByName}</span> necesita que le cubras:
                   </p>
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">{sol.roleLabel}</span>
-                    <span className="text-slate-600 text-sm font-medium capitalize">{sol.dayType} · {new Date(sol.scheduleDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50">{sol.roleLabel}</span>
+                    <span className="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-lg capitalize">
+                      {sol.dayType} · {new Date(sol.scheduleDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                    </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleSolicitudResponse(sol, true)}
                       disabled={answeringId === sol.id}
-                      className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      ✓ Puedo
-                    </button>
+                      className="py-3 text-sm font-bold rounded-xl text-white transition-all active:scale-95 disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 4px 12px -2px rgba(16,185,129,0.35)' }}
+                    >✓ Puedo</button>
                     <button
                       onClick={() => handleSolicitudResponse(sol, false)}
                       disabled={answeringId === sol.id}
-                      className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      ✗ No puedo
-                    </button>
+                      className="py-3 text-sm font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 border-2 border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                    >✗ No puedo</button>
                   </div>
                 </div>
               </div>
@@ -208,17 +257,18 @@ export default function UserDashboard() {
 
         {/* Tabs (solo ayudante) */}
         {isAyudante && (
-          <div className="flex gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
-            <button
-              onClick={() => setActiveTab('turnos')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === 'turnos' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-            >
+          <div className="segmented-tabs">
+            <div
+              className="segmented-tab-indicator"
+              style={{
+                left: `calc(4px + ${activeTabIdx} * (100% - 8px) / 3)`,
+                width: 'calc((100% - 8px) / 3)',
+              }}
+            />
+            <button onClick={() => setActiveTab('turnos')} className={`segmented-tab${activeTab === 'turnos' ? ' active' : ''}`}>
               📅 Mis turnos
             </button>
-            <button
-              onClick={() => setActiveTab('notificaciones')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'notificaciones' ? 'bg-amber-500 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-            >
+            <button onClick={() => setActiveTab('notificaciones')} className={`segmented-tab${activeTab === 'notificaciones' ? ' active' : ''} relative`}>
               🔔 Avisos
               {notifBadge > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold badge-new">
@@ -226,10 +276,7 @@ export default function UserDashboard() {
                 </span>
               )}
             </button>
-            <button
-              onClick={() => setActiveTab('sustitutos')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors relative ${activeTab === 'sustitutos' ? 'bg-red-500 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-            >
+            <button onClick={() => setActiveTab('sustitutos')} className={`segmented-tab${activeTab === 'sustitutos' ? ' active' : ''} relative`}>
               🔄 Sustitutos
               {substBadge > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold badge-new">
@@ -283,64 +330,67 @@ export default function UserDashboard() {
                     .filter(([, pid]) => pid === myPersonId)
                     .map(([rk]) => ({ key: rk, label: ROLES.find(r => r.key === rk)?.label ?? rk }))
 
+                  const allConfirmed = myRoles.length > 0 && myRoles.every(r => myResponses[`${sched.id}_${r.key}`]?.response === 'puedo')
+                  const hasNoPuedo = myRoles.some(r => myResponses[`${sched.id}_${r.key}`]?.response === 'nopuedo')
+                  const dotMod = allConfirmed ? ' status-dot-confirmed' : hasNoPuedo ? ' status-dot-nopuedo' : ''
+
                   return (
-                    <div key={sched.id} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <div key={sched.id} className="bg-white dark:bg-slate-800 rounded-[20px] overflow-hidden border border-slate-100 dark:border-slate-700"
+                         style={{ boxShadow: '0 2px 12px -2px rgba(0,0,0,0.06), 0 1px 3px -1px rgba(0,0,0,0.04)' }}>
                       {/* Header fecha */}
-                      <div className={`flex items-center justify-between px-4 py-2.5 ${sched.dayType === 'Domingo' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'}`}>
-                        <div>
-                          <span className="font-bold text-sm">{sched.dayType}</span>
-                          <span className="text-sm ml-2 opacity-80">
-                            {String(d.getDate()).padStart(2,'0')}/{String(d.getMonth()+1).padStart(2,'0')}
-                          </span>
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                        <div className="flex items-center gap-3">
+                          <div className="date-chip">
+                            <span className="date-chip-day">{String(d.getDate()).padStart(2, '0')}</span>
+                            <span className="date-chip-month">{MONTHS[d.getMonth()].slice(0, 3)}</span>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-none">
+                              {sched.dayType}
+                            </p>
+                            <p className="text-slate-400 text-xs mt-0.5">
+                              {sched.dayType === 'Domingo' ? 'Fin de semana' : sched.dayType === 'Miércoles' ? 'Entre semana' : 'Especial'}
+                            </p>
+                          </div>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${sched.dayType === 'Domingo' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
-                          {MONTHS[d.getMonth()]}
-                        </span>
+                        <div className={`status-dot${dotMod}`} />
                       </div>
 
                       {/* Roles + botones */}
-                      <div className="p-4 space-y-3">
+                      <div className="p-4 space-y-4">
                         {myRoles.map(role => {
                           const key = `${sched.id}_${role.key}`
                           const existing = myResponses[key]
                           const isResponding = respondingKey === key
+                          const isConfirmed = existing?.response === 'puedo'
+                          const isNoPuedo = existing?.response === 'nopuedo'
 
                           return (
-                            <div key={role.key} className="flex items-center justify-between gap-3 flex-wrap">
-                              <div className="flex items-center gap-2">
-                                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                                  {role.label}
-                                </span>
-                                {existing && (
-                                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${existing.response === 'puedo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                                    {existing.response === 'puedo' ? '✅ Confirmado' : '❌ No puedo'}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
-                                  disabled={isResponding || existing?.response === 'puedo'}
-                                  className={`text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${
-                                    existing?.response === 'puedo'
-                                      ? 'bg-green-500 text-white cursor-default'
-                                      : 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100'
-                                  } disabled:opacity-50`}
-                                >
-                                  ✓ Puedo
-                                </button>
-                                <button
-                                  onClick={() => handleResponse(sched, role.key, role.label, 'nopuedo')}
-                                  disabled={isResponding || existing?.response === 'nopuedo'}
-                                  className={`text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${
-                                    existing?.response === 'nopuedo'
-                                      ? 'bg-red-500 text-white cursor-default'
-                                      : 'bg-red-50 text-red-600 border border-red-300 hover:bg-red-100'
-                                  } disabled:opacity-50`}
-                                >
-                                  ✗ No puedo
-                                </button>
-                              </div>
+                            <div key={role.key}>
+                              <span className="inline-block bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 mb-2">
+                                {role.label}
+                              </span>
+                              {isConfirmed ? (
+                                <div className="btn-confirm">✓ Confirmado — Puedo asistir</div>
+                              ) : isNoPuedo ? (
+                                <div className="flex items-center justify-center gap-1.5 w-full py-3 rounded-xl text-red-500 dark:text-red-400 text-sm font-bold border-2 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30">
+                                  ✗ Has indicado que no puedes
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
+                                    disabled={isResponding}
+                                    className="py-3 text-sm font-bold rounded-xl text-white transition-all active:scale-95 disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 4px 12px -2px rgba(16,185,129,0.35)' }}
+                                  >✓ Puedo</button>
+                                  <button
+                                    onClick={() => handleResponse(sched, role.key, role.label, 'nopuedo')}
+                                    disabled={isResponding}
+                                    className="py-3 text-sm font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 border-2 border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                                  >✗ No puedo</button>
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -358,9 +408,9 @@ export default function UserDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-800">Horario mensual</h3>
             <div className="flex items-center gap-2">
-              <button onClick={prevMonth} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600">‹</button>
-              <span className="text-sm font-semibold text-slate-700 min-w-32 text-center">{MONTHS[viewMonth - 1]} {viewYear}</span>
-              <button onClick={nextMonth} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600">›</button>
+              <button onClick={prevMonth} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 flex items-center justify-center text-slate-500 transition-colors active:scale-95">‹</button>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-100 min-w-32 text-center" style={{ letterSpacing: '-0.02em' }}>{MONTHS[viewMonth - 1]} {viewYear}</span>
+              <button onClick={nextMonth} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 flex items-center justify-center text-slate-500 transition-colors active:scale-95">›</button>
             </div>
           </div>
           {loading ? (
