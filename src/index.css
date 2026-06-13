@@ -39,13 +39,17 @@
 
   /* position + overflow: hidden preparados para el shine ::after */
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 active:scale-95
-           text-white font-semibold px-4 py-2 rounded-lg
+    @apply active:scale-95 text-white font-semibold px-4 py-2 rounded-xl
            transition-all duration-150
-           shadow-sm hover:shadow-md
            disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.35);
     position: relative;
     overflow: hidden;
+  }
+  .btn-primary:not(:disabled):hover {
+    box-shadow: 0 6px 20px -2px rgba(79, 70, 229, 0.45);
+    filter: brightness(1.06);
   }
 
   .btn-secondary {
@@ -86,26 +90,27 @@
   .input {
     @apply w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm
            transition-all duration-150
-           focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400
+           focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400
            bg-white text-slate-900 placeholder:text-slate-400
            dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100
-           dark:placeholder-slate-400 dark:focus:border-blue-400;
+           dark:placeholder-slate-400 dark:focus:border-indigo-400;
   }
 
   /* ── BADGES ───────────────────────────────────────────────────────── */
 
   .badge-coord {
-    @apply bg-pink-100 text-pink-700 text-xs font-bold px-2 py-0.5 rounded-full
-           dark:bg-pink-900 dark:text-pink-300;
+    @apply bg-violet-100 text-violet-700 text-xs font-bold px-2 py-0.5 rounded-full
+           dark:bg-violet-900/40 dark:text-violet-300;
   }
 
   .badge-user {
-    @apply bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full
-           dark:bg-blue-900 dark:text-blue-300;
+    @apply bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full
+           dark:bg-indigo-900/40 dark:text-indigo-300;
   }
 
   .badge-ayudante {
-    @apply bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full;
+    @apply bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full
+           dark:bg-amber-900/40 dark:text-amber-300;
   }
 
   /* ── SKELETON ─────────────────────────────────────────────────────── */
@@ -115,6 +120,201 @@
     @apply bg-slate-200 rounded-xl dark:bg-slate-700;
     position: relative;
     overflow: hidden;
+  }
+
+  /* ── GLASS HEADER ─────────────────────────────────────────────────── */
+  .glass-header {
+    @apply sticky top-0 z-10;
+    background: rgba(248, 249, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  }
+  .dark .glass-header {
+    background: rgba(15, 23, 42, 0.90);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ── HERO AURORA ──────────────────────────────────────────────────── */
+  .hero-aurora {
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-aurora::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 0% 0%, rgba(99, 102, 241, 0.14) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 100% 100%, rgba(139, 92, 246, 0.10) 0%, transparent 60%),
+      linear-gradient(180deg, #eef2ff 0%, #f8f9ff 100%);
+    pointer-events: none;
+  }
+  .dark .hero-aurora::before {
+    background:
+      radial-gradient(ellipse 80% 60% at 0% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 100% 100%, rgba(139, 92, 246, 0.08) 0%, transparent 60%),
+      linear-gradient(180deg, #0d1225 0%, #0f172a 100%);
+  }
+
+  /* ── NEXT TURN CARD ───────────────────────────────────────────────── */
+  .next-turn-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 14px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    box-shadow: 0 8px 24px -4px rgba(79, 70, 229, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.10) inset;
+  }
+  .next-turn-card::before {
+    content: '';
+    position: absolute;
+    top: -40%; right: -10%;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+  }
+
+  /* ── DATE CHIP ────────────────────────────────────────────────────── */
+  .date-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #eef2ff;
+    border-radius: 10px;
+    padding: 6px 10px;
+    min-width: 44px;
+    flex-shrink: 0;
+  }
+  .dark .date-chip { background: rgba(99, 102, 241, 0.15); }
+
+  .date-chip-day {
+    font-size: 18px;
+    font-weight: 800;
+    color: #4f46e5;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .dark .date-chip-day { color: #a5b4fc; }
+
+  .date-chip-month {
+    font-size: 9px;
+    font-weight: 700;
+    color: #818cf8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 1px;
+  }
+
+  /* ── SEGMENTED TABS ───────────────────────────────────────────────── */
+  .segmented-tabs {
+    display: flex;
+    background: #f1f5f9;
+    border-radius: 14px;
+    padding: 4px;
+    position: relative;
+  }
+  .dark .segmented-tabs {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .segmented-tab {
+    flex: 1;
+    text-align: center;
+    padding: 9px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    position: relative;
+    z-index: 1;
+    transition: color 200ms ease;
+    border-radius: 10px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+  .segmented-tab.active { color: #0f172a; }
+  .dark .segmented-tab.active { color: #f1f5f9; }
+
+  .segmented-tab-indicator {
+    position: absolute;
+    top: 4px;
+    height: calc(100% - 8px);
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.10),
+                0 1px 3px -1px rgba(0, 0, 0, 0.06);
+    transition: left 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                width 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+  .dark .segmented-tab-indicator {
+    background: rgba(255, 255, 255, 0.10);
+    box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.3);
+  }
+
+  /* ── STATUS DOT ───────────────────────────────────────────────────── */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    flex-shrink: 0;
+  }
+  .status-dot-confirmed {
+    background: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  }
+  .status-dot-nopuedo {
+    background: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+  }
+
+  /* ── BTN CONFIRM ──────────────────────────────────────────────────── */
+  .btn-confirm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 12px 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.30);
+  }
+
+  /* ── INPUT DARK (solo Login) ──────────────────────────────────────── */
+  .input-dark {
+    width: 100%;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: max(16px, 0.875rem);
+    font-family: inherit;
+    transition: all 150ms ease;
+    color: #f1f5f9;
+    caret-color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    outline: none;
+  }
+  .input-dark::placeholder { color: #475569; }
+  .input-dark:focus {
+    border-color: rgba(99, 102, 241, 0.50);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
   }
 }
 
