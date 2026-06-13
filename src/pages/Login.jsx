@@ -103,41 +103,56 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-800 via-blue-700 to-blue-900
-                    flex items-center justify-center p-4">
-      <div className="w-full max-w-sm fade-in">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+         style={{ background: '#0d0d14' }}>
+      {/* Glows de fondo */}
+      <div style={{
+        position: 'fixed', top: '-80px', left: '50%', transform: 'translateX(-50%)',
+        width: '500px', height: '400px', borderRadius: '50%', pointerEvents: 'none',
+        background: 'radial-gradient(circle, rgba(99,102,241,0.20) 0%, transparent 70%)',
+      }} />
+      <div style={{
+        position: 'fixed', bottom: '15%', right: '-80px',
+        width: '280px', height: '280px', borderRadius: '50%', pointerEvents: 'none',
+        background: 'radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%)',
+      }} />
+      <div className="w-full max-w-sm fade-in relative z-10">
 
         {/* Logo y título */}
         <div className="text-center mb-8">
-          <img
-            src="/logo.png"
-            alt="TurnoGuide"
-            className="h-40 w-40 mx-auto mb-4 drop-shadow-lg"
-            style={{ mixBlendMode: 'multiply' }}
-          />
-          <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-sm">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-[20px] bg-gradient-to-br from-indigo-600 to-violet-700
+                          flex items-center justify-center"
+               style={{ boxShadow: '0 0 40px rgba(99,102,241,0.45), 0 8px 24px rgba(0,0,0,0.35)' }}>
+            <img src="/logo.png" alt="TurnoGuide" className="h-9 w-9 object-contain" />
+          </div>
+          <h1 className="text-[28px] font-extrabold text-white"
+              style={{ letterSpacing: '-0.04em' }}>
             TurnoGuide
           </h1>
-          <p className="text-blue-200 text-sm mt-1.5">Turnos de Audio y Acomodadores</p>
-          <p className="text-blue-300/80 text-xs mt-0.5">Congregación Villajoyosa</p>
+          <p className="text-slate-500 text-sm mt-1.5 font-medium">Congregación Villajoyosa</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl shadow-blue-900/30 p-7
-                        ring-1 ring-white/50">
+        <div className="rounded-3xl p-7"
+             style={{
+               background: 'rgba(255,255,255,0.04)',
+               border: '1px solid rgba(255,255,255,0.08)',
+               backdropFilter: 'blur(20px)',
+               WebkitBackdropFilter: 'blur(20px)',
+             }}>
           {!showSetup ? (
             <>
-              <h2 className="text-lg font-bold text-slate-800 mb-5 text-center tracking-tight">
+              <h2 className="text-base font-bold text-slate-200 mb-5 text-center tracking-tight">
                 Iniciar sesión
               </h2>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-600 block mb-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                     Nombre
                   </label>
                   <div className="relative">
                     <input
-                      className="input"
+                      className="input-dark"
                       type="text"
                       placeholder="Tu nombre completo"
                       value={name}
@@ -147,21 +162,22 @@ export default function Login() {
                       autoComplete="off"
                     />
                     {showSuggestions && (
-                      <ul className="absolute z-10 w-full mt-1.5 bg-white border border-slate-200
-                                     rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
+                      <ul className="absolute z-10 w-full mt-1.5 rounded-2xl overflow-hidden"
+                          style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
                         {suggestions.map(n => (
                           <li
                             key={n}
                             onMouseDown={() => selectSuggestion(n)}
                             className="flex items-center gap-3 px-4 py-3
-                                       hover:bg-blue-50 cursor-pointer transition-colors
-                                       border-b border-slate-50 last:border-0"
+                                       hover:bg-indigo-500/10 cursor-pointer transition-colors
+                                       border-b border-white/5 last:border-0"
                           >
-                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center
-                                            justify-center text-blue-700 font-bold text-xs shrink-0">
+                            <div className="w-7 h-7 rounded-full flex items-center
+                                            justify-center font-bold text-xs shrink-0 text-indigo-300"
+                                 style={{ background: 'rgba(99,102,241,0.2)' }}>
                               {n[0]}
                             </div>
-                            <span className="text-sm text-slate-700">{n}</span>
+                            <span className="text-sm text-slate-300">{n}</span>
                           </li>
                         ))}
                       </ul>
@@ -170,10 +186,10 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-600 block mb-1.5">PIN</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">PIN</label>
                   <input
                     ref={pinRef}
-                    className="input"
+                    className="input-dark"
                     type="password"
                     placeholder="Tu PIN"
                     value={pin}
@@ -188,23 +204,24 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-xl font-bold text-white text-sm
-                             bg-gradient-to-r from-blue-600 to-blue-700
-                             hover:from-blue-700 hover:to-blue-800
+                  className="w-full py-3.5 rounded-[14px] font-bold text-white text-sm
                              active:scale-95 transition-all duration-150
-                             shadow-md shadow-blue-600/25
                              disabled:opacity-60 disabled:active:scale-100
-                             flex items-center justify-center gap-2"
+                             flex items-center justify-center gap-2 mt-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                    boxShadow: '0 8px 24px -4px rgba(99,102,241,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset',
+                  }}
                 >
                   {loading ? <><SpinnerIcon /> Entrando...</> : 'Entrar'}
                 </button>
               </form>
 
-              <div className="mt-5 pt-5 border-t border-slate-100 text-center">
-                <p className="text-xs text-slate-400 mb-2">¿Primera vez usando la app?</p>
+              <div className="mt-5 pt-5 border-t border-white/[0.08] text-center">
+                <p className="text-xs text-slate-600 mb-2">¿Primera vez usando la app?</p>
                 <button
                   onClick={handleCheckSetup}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium
                              hover:underline transition-colors disabled:opacity-50"
                   disabled={checkingSetup}
                 >
@@ -220,7 +237,7 @@ export default function Login() {
                                 rounded-2xl mb-3 shadow-sm">
                   <span className="text-2xl">🎉</span>
                 </div>
-                <h2 className="text-lg font-bold text-slate-800 tracking-tight">
+                <h2 className="text-lg font-bold text-slate-100 tracking-tight">
                   Crear cuenta de coordinador
                 </h2>
                 <p className="text-slate-500 text-sm mt-1">
@@ -230,11 +247,11 @@ export default function Login() {
 
               <form onSubmit={handleSetup} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-600 block mb-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                     Tu nombre
                   </label>
                   <input
-                    className="input"
+                    className="input-dark"
                     type="text"
                     placeholder="Nombre completo"
                     value={name}
@@ -242,11 +259,11 @@ export default function Login() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-600 block mb-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                     Crear PIN
                   </label>
                   <input
-                    className="input"
+                    className="input-dark"
                     type="password"
                     placeholder="Elige un PIN"
                     value={pin}
@@ -274,7 +291,7 @@ export default function Login() {
 
               <button
                 onClick={() => { setShowSetup(false); setError('') }}
-                className="w-full mt-3 text-sm text-slate-400 hover:text-slate-600
+                className="w-full mt-3 text-sm text-slate-500 hover:text-slate-300
                            transition-colors font-medium"
               >
                 ← Volver al login
@@ -283,7 +300,7 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-blue-200/80 text-xs mt-6">
+        <p className="text-center text-slate-600 text-xs mt-6">
           IMPORTANTE: Llega 30 min antes de la reunión
         </p>
       </div>
