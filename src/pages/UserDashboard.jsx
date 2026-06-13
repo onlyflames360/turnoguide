@@ -158,6 +158,12 @@ export default function UserDashboard() {
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
 
+  const myUpcoming = useMemo(() => schedules.filter(s => {
+    if (s.isAssamblea || !myPersonId) return false
+    const d = new Date(s.date)
+    return d >= today && Object.values(s.assignments || {}).includes(myPersonId)
+  }).slice(0, 5), [schedules, myPersonId, today])
+
   // Roles de emergencia: entrada/parking donde el usuario ha dicho "Puedo"
   const myTodayEmergencyRoles = useMemo(() => {
     if (!myPersonId) return []
@@ -177,12 +183,6 @@ export default function UserDashboard() {
     }
     return roles
   }, [myUpcoming, myPersonId, myResponses])
-
-  const myUpcoming = useMemo(() => schedules.filter(s => {
-    if (s.isAssamblea || !myPersonId) return false
-    const d = new Date(s.date)
-    return d >= today && Object.values(s.assignments || {}).includes(myPersonId)
-  }).slice(0, 5), [schedules, myPersonId, today])
 
   const filteredSchedules = useMemo(() => schedules.filter(s => {
     const d = new Date(s.date)
