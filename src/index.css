@@ -213,6 +213,7 @@
     letter-spacing: 0.08em;
     margin-top: 1px;
   }
+  .dark .date-chip-month { color: #a5b4fc; }
 
   /* ── SEGMENTED TABS ───────────────────────────────────────────────── */
   .segmented-tabs {
@@ -271,6 +272,7 @@
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
     flex-shrink: 0;
   }
+  /* always used together with .status-dot */
   .status-dot-confirmed {
     background: #10b981;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
