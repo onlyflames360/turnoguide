@@ -339,6 +339,37 @@ exports.dailyReminders = onSchedule(
 )
 
 /**
+ * FUNCIÓN 5: Alerta de emergencia — push a TODOS los usuarios
+ * Se dispara cuando se crea un doc en la colección 'emergencias'
+ */
+exports.onEmergencyCreated = onDocumentCreated(
+  { document: 'emergencias/{id}', region: 'europe-west1' },
+  async (event) => {
+    const data = event.data?.data()
+    if (!data) return
+
+    const { roleLabel = 'Emergencia', senderName = 'Desconocido' } = data
+    const title = `🚨 EMERGENCIA — ${roleLabel}`
+    const body = `${senderName} ha activado la alerta en ${roleLabel}. Acudir inmediatamente.`
+
+    // Tokens de TODOS los usuarios (ayudantes + coordinadores)
+    const usersSnap = await db.collection('users').get()
+    const tokens = usersSnap.docs.map(d => d.data().fcmToken).filter(Boolean)
+
+    await Promise.all(tokens.map(token =>
+      messaging.send({
+        token,
+        data: { type: 'emergency', title, body, roleLabel, senderName },
+        webpush: {
+          headers: { Urgency: 'very-high', TTL: '3600' },
+          fcmOptions: { link: APP_URL },
+        },
+      }).catch(e => console.warn('Emergency push error:', e.message))
+    ))
+  }
+)
+
+/**
  * MIGRACIÓN: Renombra users con role='ayudante' → role='ayudante_av'
  * Llamar una sola vez: GET /migrateAyudante
  */

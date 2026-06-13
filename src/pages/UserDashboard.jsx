@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { collection, onSnapshot, query, orderBy, where, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { collection, onSnapshot, query, orderBy, where, addDoc, doc, updateDoc, serverTimestamp, Timestamp, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
@@ -7,6 +7,8 @@ import ScheduleTable from '../components/ScheduleTable'
 import NotificationsTab from '../components/NotificationsTab'
 import SubstituteTab from '../components/SubstituteTab'
 import ProfileAvatar from '../components/ProfileAvatar'
+import EmergencyButton from '../components/EmergencyButton'
+import EmergencyModal from '../components/EmergencyModal'
 import { ROLES } from '../utils/scheduleGenerator'
 import { showNotification } from '../utils/notifications'
 
@@ -24,12 +26,30 @@ export default function UserDashboard() {
   const [substBadge, setSubstBadge] = useState(0)
   const [mySolicitudes, setMySolicitudes] = useState([])
   const [answeringId, setAnsweringId] = useState(null)
+  const [emergencyAlert, setEmergencyAlert] = useState(null)
+  const mountTime = useRef(Timestamp.now())
   const isAyudante = user?.role === 'ayudante_av' || user?.role === 'ayudante_ac' || user?.role === 'ayudante'
   const roleSection = user?.role === 'ayudante_av' ? 'av' : user?.role === 'ayudante_ac' ? 'ac' : null
 
   const now = new Date()
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
   const [viewYear, setViewYear] = useState(now.getFullYear())
+
+  // Listener de alertas de emergencia — solo docs nuevos desde que montó la página
+  useEffect(() => {
+    const q = query(
+      collection(db, 'emergencias'),
+      where('createdAt', '>', mountTime.current),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    )
+    return onSnapshot(q, snap => {
+      if (!snap.empty) {
+        const d = snap.docs[0]
+        setEmergencyAlert({ id: d.id, ...d.data() })
+      }
+    })
+  }, [])
 
   useEffect(() => {
     const unsubSched = onSnapshot(
@@ -138,6 +158,23 @@ export default function UserDashboard() {
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
 
+  // Roles de emergencia que tiene el usuario HOY (entrada o parking)
+  const todayDateStr = useMemo(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }, [])
+
+  const myTodayEmergencyRoles = useMemo(() => {
+    if (!myPersonId) return []
+    return schedules
+      .filter(s => s.date === todayDateStr && !s.isAssamblea)
+      .flatMap(s =>
+        Object.entries(s.assignments || {})
+          .filter(([rk, pid]) => pid === myPersonId && (rk === 'entrada' || rk === 'parking'))
+          .map(([rk]) => ({ key: rk, label: rk === 'entrada' ? 'Entrada' : 'Vehículos' }))
+      )
+  }, [schedules, myPersonId, todayDateStr])
+
   const myUpcoming = useMemo(() => schedules.filter(s => {
     if (s.isAssamblea || !myPersonId) return false
     const d = new Date(s.date)
@@ -172,6 +209,7 @@ export default function UserDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <EmergencyModal emergency={emergencyAlert} onClose={() => setEmergencyAlert(null)} />
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
@@ -228,6 +266,32 @@ export default function UserDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Botones de emergencia — solo si el usuario tiene entrada/parking HOY */}
+        {myTodayEmergencyRoles.length > 0 && (
+          <div
+            className="rounded-2xl fade-in overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg,rgba(220,38,38,0.08),rgba(153,27,27,0.05))',
+              border: '1px solid rgba(220,38,38,0.25)',
+              boxShadow: '0 4px 20px rgba(220,38,38,0.08)',
+            }}
+          >
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-red-200/30 dark:border-red-900/30">
+              <span className="text-red-600 dark:text-red-400 text-sm font-black">🚨 ALERTA DE EMERGENCIA</span>
+            </div>
+            <div className="px-4 py-5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-4">
+                Pulsa si hay una emergencia en tu puesto. Se avisará a todos.
+              </p>
+              <div className={`flex gap-8 justify-center`}>
+                {myTodayEmergencyRoles.map(r => (
+                  <EmergencyButton key={r.key} roleKey={r.key} roleLabel={r.label} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Solicitudes de sustitución pendientes */}
         {mySolicitudes.length > 0 && (

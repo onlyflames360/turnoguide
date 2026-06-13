@@ -23,6 +23,22 @@ const ROLE_LABELS = {
 
 // Recibe todos los push en background/bloqueado
 messaging.onBackgroundMessage((payload) => {
+  // Alerta de emergencia → notificación crítica roja
+  if (payload.data?.type === 'emergency') {
+    const { title, body, roleLabel, senderName } = payload.data
+    self.registration.showNotification(title, {
+      body,
+      icon: `${APP_URL}/logo.png`,
+      badge: `${APP_URL}/logo.png`,
+      vibrate: [500, 100, 500, 100, 500, 100, 500],
+      requireInteraction: true,
+      tag: 'emergency',
+      renotify: true,
+      data: { type: 'emergency', url: APP_URL, roleLabel, senderName },
+    })
+    return
+  }
+
   // Recordatorio de turno → mostrar con botones de acción
   if (payload.data?.type === 'reminder') {
     const assignments = JSON.parse(payload.data.assignments || '[]')
