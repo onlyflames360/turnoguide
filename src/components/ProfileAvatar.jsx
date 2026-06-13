@@ -99,7 +99,6 @@ export default function ProfileAvatar({ size = 96 }) {
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="user"
         className="hidden"
         onChange={handleFile}
       />
