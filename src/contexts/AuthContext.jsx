@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { collection, getDocs, query, where, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { registerFCM } from '../firebase/messaging'
 
@@ -54,6 +54,14 @@ export function AuthProvider({ children }) {
     return userData
   }
 
+  async function updateUser(updates) {
+    if (!user?.id) return
+    await updateDoc(doc(db, 'users', user.id), updates)
+    const updated = { ...user, ...updates }
+    setUser(updated)
+    localStorage.setItem('tg_user', JSON.stringify(updated))
+  }
+
   function logout() {
     setUser(null)
     localStorage.removeItem('tg_user')
@@ -76,7 +84,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, createFirstCoordinator }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, createFirstCoordinator, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -6,6 +6,7 @@ import Header from '../components/Header'
 import ScheduleTable from '../components/ScheduleTable'
 import NotificationsTab from '../components/NotificationsTab'
 import SubstituteTab from '../components/SubstituteTab'
+import ProfileAvatar from '../components/ProfileAvatar'
 import { ROLES } from '../utils/scheduleGenerator'
 import { showNotification } from '../utils/notifications'
 
@@ -174,44 +175,56 @@ export default function UserDashboard() {
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Bienvenida */}
-        <div className="hero-aurora rounded-2xl fade-in">
-          <div className="relative z-10 p-5">
-            <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-1">
-              Bienvenido
-            </p>
-            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white"
-                style={{ letterSpacing: '-0.04em' }}>
-              Hola, <span className="text-indigo-600 dark:text-indigo-400">{user?.name?.split(' ')[0]}</span> 👋
-            </h2>
-            {myUpcoming.length > 0 && (
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                {myUpcoming.length} turno{myUpcoming.length !== 1 ? 's' : ''} próximo{myUpcoming.length !== 1 ? 's' : ''}
-              </p>
-            )}
-            {nextSched && myPersonId && (
-              <div className="next-turn-card mt-4">
-                <div>
-                  <p className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">
-                    Próximo turno
-                  </p>
-                  <p className="text-lg font-extrabold text-white mt-0.5"
+        {/* Perfil de usuario */}
+        <div className="hero-aurora rounded-2xl fade-in overflow-visible">
+          <div className="relative z-10 pt-6 pb-5 px-5">
+            {/* Avatar centrado */}
+            <div className="flex flex-col items-center">
+              <ProfileAvatar size={96} />
+
+              {/* Nombre superpuesto al avatar (-mt hace que suba sobre la foto) */}
+              <div className="text-center -mt-3 relative z-10">
+                <div className="inline-block bg-white/90 dark:bg-slate-800/90 rounded-2xl px-5 pt-5 pb-3 shadow-sm"
+                     style={{ backdropFilter: 'blur(8px)' }}>
+                  <p className="text-lg font-extrabold text-slate-900 dark:text-white leading-tight"
                      style={{ letterSpacing: '-0.03em' }}>
-                    {nextTurnDate}
+                    {user?.name}
                   </p>
-                  {nextTurnRoles && (
-                    <p className="text-indigo-200 text-xs mt-0.5">{nextTurnRoles}</p>
+                  {myUpcoming.length > 0 && (
+                    <p className="text-indigo-500 dark:text-indigo-400 text-xs font-semibold mt-0.5">
+                      {myUpcoming.length} turno{myUpcoming.length !== 1 ? 's' : ''} próximo{myUpcoming.length !== 1 ? 's' : ''}
+                    </p>
                   )}
                 </div>
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
-                     style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  🎵
-                </div>
               </div>
-            )}
-            <div className="inline-flex items-center gap-1.5 mt-3 rounded-full px-3 py-1.5"
-                 style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.20)' }}>
-              <span className="text-red-400 text-xs font-semibold">⚠️ Llegar 30 min antes</span>
+            </div>
+
+            {/* Próximo turno y aviso */}
+            <div className="mt-4 space-y-3">
+              {nextSched && myPersonId && (
+                <div className="next-turn-card">
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">
+                      Próximo turno
+                    </p>
+                    <p className="text-lg font-extrabold text-white mt-0.5"
+                       style={{ letterSpacing: '-0.03em' }}>
+                      {nextTurnDate}
+                    </p>
+                    {nextTurnRoles && (
+                      <p className="text-indigo-200 text-xs mt-0.5">{nextTurnRoles}</p>
+                    )}
+                  </div>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
+                       style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    🎵
+                  </div>
+                </div>
+              )}
+              <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
+                   style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.20)' }}>
+                <span className="text-red-400 text-xs font-semibold">⚠️ Llegar 30 min antes</span>
+              </div>
             </div>
           </div>
         </div>
