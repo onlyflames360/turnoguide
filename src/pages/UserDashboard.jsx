@@ -158,22 +158,25 @@ export default function UserDashboard() {
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
 
-  // Roles de emergencia que tiene el usuario HOY (entrada o parking)
-  const todayDateStr = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-  }, [])
-
+  // Roles de emergencia: entrada/parking donde el usuario ha dicho "Puedo"
   const myTodayEmergencyRoles = useMemo(() => {
     if (!myPersonId) return []
-    return schedules
-      .filter(s => s.date === todayDateStr && !s.isAssamblea)
-      .flatMap(s =>
-        Object.entries(s.assignments || {})
-          .filter(([rk, pid]) => pid === myPersonId && (rk === 'entrada' || rk === 'parking'))
-          .map(([rk]) => ({ key: rk, label: rk === 'entrada' ? 'Entrada' : 'Vehículos' }))
-      )
-  }, [schedules, myPersonId, todayDateStr])
+    const seen = new Set()
+    const roles = []
+    for (const s of myUpcoming) {
+      for (const [rk, pid] of Object.entries(s.assignments || {})) {
+        if (pid !== myPersonId) continue
+        if (rk !== 'entrada' && rk !== 'parking') continue
+        if (seen.has(rk)) continue
+        const resp = myResponses[`${s.id}_${rk}`]
+        if (resp?.response === 'puedo') {
+          seen.add(rk)
+          roles.push({ key: rk, label: rk === 'entrada' ? 'Entrada' : 'Vehículos' })
+        }
+      }
+    }
+    return roles
+  }, [myUpcoming, myPersonId, myResponses])
 
   const myUpcoming = useMemo(() => schedules.filter(s => {
     if (s.isAssamblea || !myPersonId) return false
