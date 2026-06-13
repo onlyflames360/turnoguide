@@ -95,7 +95,7 @@ export default function Header() {
             <p className="text-slate-900 dark:text-white font-extrabold text-sm leading-none tracking-tight">
               TurnoGuide
             </p>
-            <p className="text-slate-400 text-xs leading-none mt-0.5">Villajoyosa</p>
+            <p className="text-slate-400 dark:text-slate-500 text-xs leading-none mt-0.5">Villajoyosa</p>
           </div>
         </div>
 
@@ -152,7 +152,8 @@ export default function Header() {
 
           {/* Avatar con iniciales */}
           {user?.name && (
-            <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-indigo-600 to-violet-600
+            <div aria-hidden="true"
+                 className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-indigo-600 to-violet-600
                             flex items-center justify-center text-white font-bold text-xs shrink-0 hidden sm:flex"
                  style={{ boxShadow: '0 2px 8px rgba(79,70,229,0.3)' }}>
               {user.name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase()}
