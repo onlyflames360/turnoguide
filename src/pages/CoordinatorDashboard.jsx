@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { collection, onSnapshot, query, orderBy, where, doc, deleteDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, where, doc, deleteDoc, addDoc, updateDoc, serverTimestamp, Timestamp, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
@@ -8,6 +8,8 @@ import ScheduleGenerator from '../components/ScheduleGenerator'
 import PeopleManager from '../components/PeopleManager'
 import UserManager from '../components/UserManager'
 import NotificationsTab from '../components/NotificationsTab'
+import EmergencyButton from '../components/EmergencyButton'
+import EmergencyModal from '../components/EmergencyModal'
 // jsPDF se carga solo cuando el usuario pulsa "Descargar PDF" (~95 kB menos en carga inicial)
 async function exportSchedulePdf(...args) {
   const { exportSchedulePdf: fn } = await import('../utils/exportPdf')
@@ -35,6 +37,8 @@ export default function CoordinatorDashboard() {
   const [respondingKey, setRespondingKey] = useState(null)
   const [mySolicitudes, setMySolicitudes] = useState([])
   const [answeringId, setAnsweringId] = useState(null)
+  const [emergencyAlert, setEmergencyAlert] = useState(null)
+  const mountTime = useRef(Timestamp.now())
 
   const now = new Date()
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
@@ -164,6 +168,22 @@ export default function CoordinatorDashboard() {
     setTab('schedule')
   }
 
+  // Listener de alertas de emergencia — solo docs nuevos desde que montó la página
+  useEffect(() => {
+    const q = query(
+      collection(db, 'emergencias'),
+      where('createdAt', '>', mountTime.current),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    )
+    return onSnapshot(q, snap => {
+      if (!snap.empty) {
+        const d = snap.docs[0]
+        setEmergencyAlert({ id: d.id, ...d.data() })
+      }
+    })
+  }, [])
+
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
   const activePeople = useMemo(() => people.filter(p => p.active !== false).length, [people])
   const upcoming = useMemo(
@@ -175,6 +195,26 @@ export default function CoordinatorDashboard() {
     return new Date(s.date) >= today && Object.values(s.assignments || {}).includes(myPersonId)
   }).slice(0, 5), [schedules, myPersonId, today])
 
+  // Roles de emergencia: entrada/parking donde el coordinador ha dicho "Puedo"
+  const myTodayEmergencyRoles = useMemo(() => {
+    if (!myPersonId) return []
+    const seen = new Set()
+    const roles = []
+    for (const s of myUpcoming) {
+      for (const [rk, pid] of Object.entries(s.assignments || {})) {
+        if (pid !== myPersonId) continue
+        if (rk !== 'entrada' && rk !== 'parking') continue
+        if (seen.has(rk)) continue
+        const resp = myResponses[`${s.id}_${rk}`]
+        if (resp?.response === 'puedo') {
+          seen.add(rk)
+          roles.push({ key: rk, label: rk === 'entrada' ? 'Entrada' : 'Vehículos' })
+        }
+      }
+    }
+    return roles
+  }, [myUpcoming, myPersonId, myResponses])
+
   const TABS = [
     { key: 'schedule',       label: '📅 Horario' },
     { key: 'myturnos',       label: '⭐ Mis turnos' },
@@ -185,6 +225,7 @@ export default function CoordinatorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <EmergencyModal emergency={emergencyAlert} onClose={() => setEmergencyAlert(null)} />
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-5">
 
@@ -209,6 +250,32 @@ export default function CoordinatorDashboard() {
             <p className="text-xs text-white/75 mt-1 leading-tight">Usuarios</p>
           </div>
         </div>
+
+        {/* Botón emergencia — solo si tiene entrada/parking confirmado */}
+        {myTodayEmergencyRoles.length > 0 && (
+          <div
+            className="rounded-2xl fade-in overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg,rgba(220,38,38,0.08),rgba(153,27,27,0.05))',
+              border: '1px solid rgba(220,38,38,0.25)',
+              boxShadow: '0 4px 20px rgba(220,38,38,0.08)',
+            }}
+          >
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-red-200/30 dark:border-red-900/30">
+              <span className="text-red-600 dark:text-red-400 text-sm font-black">🚨 ALERTA DE EMERGENCIA</span>
+            </div>
+            <div className="px-4 py-5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-4">
+                Pulsa si hay una emergencia en tu puesto. Se avisará a todos.
+              </p>
+              <div className="flex gap-8 justify-center">
+                {myTodayEmergencyRoles.map(r => (
+                  <EmergencyButton key={r.key} roleKey={r.key} roleLabel={r.label} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto">
