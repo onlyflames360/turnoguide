@@ -1,13 +1,13 @@
 {
-  "name": "TurnoGuide — Villajoyosa",
-  "short_name": "TurnoGuide",
-  "description": "Turnos de Audio y Acomodadores · Congregación Villajoyosa",
+  "name": "Recursos AV · Villajoyosa",
+  "short_name": "Recursos AV",
+  "description": "Turnos de Audio, Video y Acomodadores · Congregación Villajoyosa",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#1e3a8a",
-  "theme_color": "#2563eb",
+  "background_color": "#0d0d14",
+  "theme_color": "#4f46e5",
   "lang": "es",
   "categories": ["utilities", "productivity"],
   "icons": [
