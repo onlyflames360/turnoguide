@@ -8,6 +8,8 @@ import ScheduleGenerator from '../components/ScheduleGenerator'
 import PeopleManager from '../components/PeopleManager'
 import UserManager from '../components/UserManager'
 import NotificationsTab from '../components/NotificationsTab'
+import AttendanceTab from '../components/AttendanceTab'
+import AttendanceForm from '../components/AttendanceForm'
 import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
 // jsPDF se carga solo cuando el usuario pulsa "Descargar PDF" (~95 kB menos en carga inicial)
@@ -221,6 +223,7 @@ export default function CoordinatorDashboard() {
     { key: 'people',         label: '👥 Personas' },
     { key: 'users',          label: '🔑 Usuarios' },
     { key: 'notifications',  label: '🔔 Notificaciones' },
+    { key: 'contabilidad',   label: '📊 Contabilidad' },
   ]
 
   return (
@@ -363,6 +366,8 @@ export default function CoordinatorDashboard() {
         {/* Tab: Mis turnos */}
         {tab === 'myturnos' && (
           <div key="tab-myturnos" className="space-y-4 fade-in">
+            {/* Formulario de asistencia (si el coordinador tiene Auditorio asignado) */}
+            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
             {/* Solicitudes pendientes */}
             {mySolicitudes.map(sol => (
               <div key={sol.id} className="bg-amber-50 border-2 border-amber-300 rounded-2xl overflow-hidden">
@@ -488,6 +493,17 @@ export default function CoordinatorDashboard() {
               onBadgeChange={setNotifBadge}
               onGoToSchedule={handleGoToSchedule}
             />
+          </div>
+        )}
+
+        {/* Tab: Contabilidad */}
+        {tab === 'contabilidad' && (
+          <div key="tab-contabilidad" className="space-y-6 fade-in">
+            {/* Formulario de relleno (si el coordinador tiene Auditorio asignado) */}
+            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
+            <div className="card">
+              <AttendanceTab schedules={schedules} />
+            </div>
           </div>
         )}
       </main>
