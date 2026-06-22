@@ -399,8 +399,12 @@ export default function UserDashboard() {
 
         {/* Tab Contabilidad (solo ayudante acomodador) */}
         {roleSection === 'ac' && activeTab === 'contabilidad' && (
-          <div key="tab-contabilidad" className="card fade-in">
-            <AttendanceTab schedules={schedules} />
+          <div key="tab-contabilidad" className="space-y-6 fade-in">
+            {/* Formulario de relleno (si el ayudante_ac tiene Auditorio asignado) */}
+            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
+            <div className="card">
+              <AttendanceTab schedules={schedules} />
+            </div>
           </div>
         )}
 
