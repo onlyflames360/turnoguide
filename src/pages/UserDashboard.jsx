@@ -6,6 +6,8 @@ import Header from '../components/Header'
 import ScheduleTable from '../components/ScheduleTable'
 import NotificationsTab from '../components/NotificationsTab'
 import SubstituteTab from '../components/SubstituteTab'
+import AttendanceTab from '../components/AttendanceTab'
+import AttendanceForm from '../components/AttendanceForm'
 import ProfileAvatar from '../components/ProfileAvatar'
 import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
@@ -197,8 +199,12 @@ export default function UserDashboard() {
   }
 
   // Layout constants for aurora hero and segmented tabs
-  const AYUDANTE_TABS = ['turnos', 'notificaciones', 'sustitutos']
-  const activeTabIdx = AYUDANTE_TABS.indexOf(activeTab)
+  // El ayudante acomodador tiene además la pestaña de Contabilidad.
+  const AYUDANTE_TABS = roleSection === 'ac'
+    ? ['turnos', 'notificaciones', 'sustitutos', 'contabilidad']
+    : ['turnos', 'notificaciones', 'sustitutos']
+  const activeTabIdx = Math.max(0, AYUDANTE_TABS.indexOf(activeTab))
+  const tabCount = AYUDANTE_TABS.length
   const nextSched = myUpcoming[0] ?? null
   const nextTurnRoles = nextSched && myPersonId
     ? Object.entries(nextSched.assignments || {})
@@ -341,8 +347,8 @@ export default function UserDashboard() {
             <div
               className="segmented-tab-indicator"
               style={{
-                left: `calc(4px + ${activeTabIdx} * (100% - 8px) / 3)`,
-                width: 'calc((100% - 8px) / 3)',
+                left: `calc(4px + ${activeTabIdx} * (100% - 8px) / ${tabCount})`,
+                width: `calc((100% - 8px) / ${tabCount})`,
               }}
             />
             <button onClick={() => setActiveTab('turnos')} className={`segmented-tab${activeTab === 'turnos' ? ' active' : ''}`}>
@@ -364,13 +370,18 @@ export default function UserDashboard() {
                 </span>
               )}
             </button>
+            {roleSection === 'ac' && (
+              <button onClick={() => setActiveTab('contabilidad')} className={`segmented-tab${activeTab === 'contabilidad' ? ' active' : ''}`}>
+                📊 Contab.
+              </button>
+            )}
           </div>
         )}
 
         {/* Tab Notificaciones (ayudante) */}
         {isAyudante && activeTab === 'notificaciones' && (
           <div key="tab-notificaciones" className="card fade-in">
-            <NotificationsTab onBadgeChange={setNotifBadge} />
+            <NotificationsTab onBadgeChange={setNotifBadge} roleSection={roleSection} />
           </div>
         )}
 
@@ -386,8 +397,18 @@ export default function UserDashboard() {
           </div>
         )}
 
+        {/* Tab Contabilidad (solo ayudante acomodador) */}
+        {roleSection === 'ac' && activeTab === 'contabilidad' && (
+          <div key="tab-contabilidad" className="card fade-in">
+            <AttendanceTab schedules={schedules} />
+          </div>
+        )}
+
         {/* Contenido de Mis turnos */}
         {(!isAyudante || activeTab === 'turnos') && <div key="tab-turnos" className="space-y-6 fade-in">
+
+        {/* Formulario de asistencia — para quien tenga Auditorio asignado */}
+        <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
 
         {/* Sin vinculación */}
         {!myPersonId && !loading && (

@@ -5,26 +5,37 @@ import { ROLES } from '../utils/scheduleGenerator'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+const AV_ROLE_KEYS = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
+const AC_ROLE_KEYS = new Set(['auditorio', 'entrada', 'parking'])
+
 function formatDateTime(ts) {
   if (!ts) return ''
   const d = ts.toDate ? ts.toDate() : new Date(ts)
   return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function NotificationsTab({ onBadgeChange, onGoToSchedule }) {
+// Filtra por sección del ayudante. Sin roleSection (coordinador) → muestra todo.
+function inSection(roleKey, roleSection) {
+  if (!roleSection) return true
+  return roleSection === 'av' ? AV_ROLE_KEYS.has(roleKey) : AC_ROLE_KEYS.has(roleKey)
+}
+
+export default function NotificationsTab({ onBadgeChange, onGoToSchedule, roleSection }) {
   const [responses, setResponses] = useState([])
   const [filter, setFilter] = useState('all') // 'all' | 'nopuedo' | 'puedo'
 
 useEffect(() => {
     const q = query(collection(db, 'responses'), orderBy('createdAt', 'desc'))
     const unsub = onSnapshot(q, snap => {
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const all = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(r => inSection(r.roleKey, roleSection))
       setResponses(all)
       const unseen = all.filter(r => !r.seen && r.response === 'nopuedo').length
       onBadgeChange?.(unseen)
     })
     return unsub
-  }, [])
+  }, [roleSection])
 
   async function markSeen(id) {
     await updateDoc(doc(db, 'responses', id), { seen: true })
