@@ -366,8 +366,8 @@ export default function CoordinatorDashboard() {
         {/* Tab: Mis turnos */}
         {tab === 'myturnos' && (
           <div key="tab-myturnos" className="space-y-4 fade-in">
-            {/* Formulario de asistencia (si el coordinador tiene Auditorio asignado) */}
-            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
+            {/* Contador de asistencia — solo si tiene Auditorio confirmado (Puedo) y es el día */}
+            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} myResponses={myResponses} />
             {/* Solicitudes pendientes */}
             {mySolicitudes.map(sol => (
               <div key={sol.id} className="bg-amber-50 border-2 border-amber-300 rounded-2xl overflow-hidden">
@@ -498,12 +498,8 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Contabilidad */}
         {tab === 'contabilidad' && (
-          <div key="tab-contabilidad" className="space-y-6 fade-in">
-            {/* Formulario de relleno (si el coordinador tiene Auditorio asignado) */}
-            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
-            <div className="card">
-              <AttendanceTab schedules={schedules} />
-            </div>
+          <div key="tab-contabilidad" className="card fade-in">
+            <AttendanceTab schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
           </div>
         )}
       </main>

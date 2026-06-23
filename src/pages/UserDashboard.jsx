@@ -399,20 +399,16 @@ export default function UserDashboard() {
 
         {/* Tab Contabilidad (solo ayudante acomodador) */}
         {roleSection === 'ac' && activeTab === 'contabilidad' && (
-          <div key="tab-contabilidad" className="space-y-6 fade-in">
-            {/* Formulario de relleno (si el ayudante_ac tiene Auditorio asignado) */}
-            <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
-            <div className="card">
-              <AttendanceTab schedules={schedules} />
-            </div>
+          <div key="tab-contabilidad" className="card fade-in">
+            <AttendanceTab schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
           </div>
         )}
 
         {/* Contenido de Mis turnos */}
         {(!isAyudante || activeTab === 'turnos') && <div key="tab-turnos" className="space-y-6 fade-in">
 
-        {/* Formulario de asistencia — para quien tenga Auditorio asignado */}
-        <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
+        {/* Contador de asistencia — solo si tiene Auditorio confirmado (Puedo) y es el día */}
+        <AttendanceForm schedules={schedules} myPersonId={myPersonId} userName={user?.name} myResponses={myResponses} />
 
         {/* Sin vinculación */}
         {!myPersonId && !loading && (

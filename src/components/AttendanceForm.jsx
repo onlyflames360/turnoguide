@@ -5,23 +5,31 @@ import { db } from '../firebase/config'
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 /**
- * Formulario de contabilidad de asistencia para la persona asignada a Auditorio.
- * Lista todas sus reuniones de Auditorio (más reciente primero) y permite
- * introducir/rectificar el recuento presencial + Zoom de cada una.
+ * Contador de asistencia para la persona asignada a Auditorio.
+ * Solo aparece para las reuniones donde el usuario tiene Auditorio, ha confirmado
+ * "Puedo" y ya ha llegado el día. Permite registrar presencial + Zoom, compartirlo
+ * a otras apps y guardarlo (queda registrado para el ayudante acomodador).
  */
-export default function AttendanceForm({ schedules, myPersonId, userName }) {
+export default function AttendanceForm({ schedules, myPersonId, userName, myResponses = {} }) {
   const [records, setRecords] = useState({}) // scheduleId → { presencial, zoom }
   const [drafts, setDrafts] = useState({})   // scheduleId → { presencial, zoom }
   const [savingId, setSavingId] = useState(null)
   const [savedId, setSavedId] = useState(null)
 
-  // Reuniones donde este usuario tiene Auditorio
+  // Reuniones de Auditorio confirmadas con "Puedo" cuyo día ya ha llegado
   const myMeetings = useMemo(() => {
     if (!myPersonId) return []
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     return schedules
-      .filter(s => !s.isAssamblea && s.assignments?.auditorio === myPersonId)
+      .filter(s => {
+        if (s.isAssamblea || s.assignments?.auditorio !== myPersonId) return false
+        const resp = myResponses[`${s.id}_auditorio`]
+        if (resp?.response !== 'puedo') return false
+        const d = new Date(s.date); d.setHours(0, 0, 0, 0)
+        return d <= today // solo el día de la reunión (y después, hasta guardarlo)
+      })
       .sort((a, b) => new Date(b.date) - new Date(a.date))
-  }, [schedules, myPersonId])
+  }, [schedules, myPersonId, myResponses])
 
   // Suscripción a los registros existentes
   useEffect(() => {
@@ -67,6 +75,24 @@ export default function AttendanceForm({ schedules, myPersonId, userName }) {
     }
   }
 
+  async function share(sched) {
+    const d = new Date(sched.date)
+    const dateStr = `${sched.dayType} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`
+    const presencial = Number(getValue(sched.id, 'presencial') || 0)
+    const zoom = Number(getValue(sched.id, 'zoom') || 0)
+    const text = `Asistencia ${dateStr} — Presencial: ${presencial}, Zoom: ${zoom}, Total: ${presencial + zoom}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ text })
+      } else {
+        await navigator.clipboard.writeText(text)
+        alert('Copiado al portapapeles')
+      }
+    } catch {
+      /* compartir cancelado */
+    }
+  }
+
   if (myMeetings.length === 0) return null
 
   return (
@@ -76,7 +102,7 @@ export default function AttendanceForm({ schedules, myPersonId, userName }) {
         <h3 className="font-bold text-slate-800 dark:text-slate-100">Contabilidad de asistencia</h3>
       </div>
       <p className="text-slate-500 dark:text-slate-400 text-xs mb-4">
-        Tienes Auditorio. Anota los asistentes presenciales y por Zoom. Puedes rectificar cuando quieras.
+        Te toca Auditorio hoy. Anota los asistentes presenciales y por Zoom. Al guardar se envía al ayudante acomodador.
       </p>
 
       <div className="space-y-3">
@@ -131,18 +157,26 @@ export default function AttendanceForm({ schedules, myPersonId, userName }) {
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-sm text-slate-600 dark:text-slate-300">
                     Total: <span className="font-bold text-indigo-600 dark:text-indigo-400">{total}</span>
                   </span>
-                  <button
-                    onClick={() => save(sched)}
-                    disabled={isSaving || (!isDirty && hasRecord)}
-                    className="text-sm font-bold px-4 py-2 rounded-lg text-white transition-all active:scale-95 disabled:opacity-40"
-                    style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}
-                  >
-                    {isSaving ? 'Guardando…' : justSaved ? '✓ Guardado' : hasRecord ? 'Rectificar' : 'Guardar'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => share(sched)}
+                      className="text-sm font-bold px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95"
+                    >
+                      📤 Compartir
+                    </button>
+                    <button
+                      onClick={() => save(sched)}
+                      disabled={isSaving || (!isDirty && hasRecord)}
+                      className="text-sm font-bold px-4 py-2 rounded-lg text-white transition-all active:scale-95 disabled:opacity-40"
+                      style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}
+                    >
+                      {isSaving ? 'Guardando…' : justSaved ? '✓ Enviado' : hasRecord ? 'Rectificar' : 'Guardar'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
