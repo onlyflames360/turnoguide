@@ -80,6 +80,8 @@ jest.mock('firebase-functions/v2/scheduler', () => ({
 }))
 jest.mock('firebase-functions/v2/https', () => ({
   onRequest: (_, handler) => handler,
+  onCall:    (_, handler) => handler,
+  HttpsError: class HttpsError extends Error { constructor(code, msg){ super(msg); this.code = code } },
 }))
 
 // ─── Módulo bajo test ────────────────────────────────────────────────────────

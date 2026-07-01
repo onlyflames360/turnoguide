@@ -1,9 +1,10 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore')
 const { onSchedule } = require('firebase-functions/v2/scheduler')
-const { onRequest } = require('firebase-functions/v2/https')
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https')
 const { initializeApp } = require('firebase-admin/app')
 const { getFirestore, FieldValue } = require('firebase-admin/firestore')
 const { getMessaging } = require('firebase-admin/messaging')
+const { getAuth } = require('firebase-admin/auth')
 
 initializeApp()
 const db = getFirestore()
@@ -483,5 +484,44 @@ exports.migrateAyudante = onRequest(
     snap.docs.forEach(d => batch.update(d.ref, { role: 'ayudante_av' }))
     await batch.commit()
     res.json({ migrated: snap.size })
+  }
+)
+
+/**
+ * LOGIN (Fase 0 de la migración a Firebase Auth) — FUNCIÓN AISLADA.
+ * Todavía NO la llama nadie: el login actual (AuthContext.jsx por name+pin) sigue
+ * intacto. Valida name+pin contra la colección 'users' y devuelve un Custom Token
+ * de Firebase Auth con el rol como custom claim, usando el ID del doc como uid.
+ */
+exports.login = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    const { name, pin } = request.data ?? {}
+
+    if (!name || !pin) {
+      throw new HttpsError('invalid-argument', 'Faltan name o pin')
+    }
+
+    const snap = await db.collection('users')
+      .where('name', '==', String(name).trim())
+      .where('pin', '==', String(pin).trim())
+      .limit(1)
+      .get()
+
+    if (snap.empty) {
+      throw new HttpsError('unauthenticated', 'Nombre o PIN incorrectos')
+    }
+
+    const doc = snap.docs[0]
+    const userData = doc.data()
+    const role = userData.role || 'usuario'
+
+    // uid = ID del documento existente → no hay que migrar IDs de usuario
+    const token = await getAuth().createCustomToken(doc.id, { role })
+
+    return {
+      token,
+      user: { id: doc.id, name: userData.name, role },
+    }
   }
 )
