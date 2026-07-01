@@ -1,57 +1,75 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { collection, getDocs, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/auth'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { db, auth, app } from '../firebase/config'
 import { registerFCM } from '../firebase/messaging'
 
 const AuthContext = createContext(null)
 
+// La Cloud Function 'login' está desplegada en europe-west1
+const functions = getFunctions(app, 'europe-west1')
+const loginCallable = httpsCallable(functions, 'login')
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  // Cache optimista (nunca con pin) para evitar parpadeo mientras Firebase resuelve
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tg_user')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      localStorage.removeItem('tg_user')
+      return null
+    }
+  })
   const [loading, setLoading] = useState(true)
 
+  /**
+   * Relee el documento de usuario desde Firestore (SIN el pin), actualiza el
+   * estado y cachea en localStorage. Se usa tras el login y al restaurar sesión.
+   */
+  async function hydrate(uid) {
+    const snap = await getDoc(doc(db, 'users', uid))
+    if (!snap.exists()) return null
+    // Nunca guardar el pin en el cliente
+    const { pin, ...safe } = snap.data()  // eslint-disable-line no-unused-vars
+    const fresh = { id: snap.id, ...safe }
+    setUser(fresh)
+    localStorage.setItem('tg_user', JSON.stringify(fresh))
+    registerFCM(fresh.id).catch(() => {})
+    return fresh
+  }
+
+  // Restauración de sesión vía Firebase Auth (fuente de verdad)
   useEffect(() => {
-    const saved = localStorage.getItem('tg_user')
-    if (saved) {
-      try {
-        const cached = JSON.parse(saved)
-        // Releer de Firestore para recoger cambios de rol (ej. migración ayudante → ayudante_av)
-        getDoc(doc(db, 'users', cached.id)).then(snap => {
-          if (snap.exists()) {
-            const fresh = { id: snap.id, ...snap.data() }
-            setUser(fresh)
-            localStorage.setItem('tg_user', JSON.stringify(fresh))
-            registerFCM(fresh.id).catch(() => {})
-          } else {
-            localStorage.removeItem('tg_user')
-            setLoading(false)
-          }
-        }).catch(() => {
-          // Si falla la red, usar datos cacheados
-          setUser(cached)
-          registerFCM(cached.id).catch(() => {})
-        }).finally(() => setLoading(false))
-        return
-      } catch { localStorage.removeItem('tg_user') }
-    }
-    setLoading(false)
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        await hydrate(fbUser.uid).catch(() => {})
+      } else {
+        setUser(null)
+        localStorage.removeItem('tg_user')
+      }
+      setLoading(false)
+    })
+    return unsub
   }, [])
 
   async function login(name, pin) {
-    const q = query(
-      collection(db, 'users'),
-      where('name', '==', name.trim()),
-      where('pin', '==', pin.trim())
-    )
-    const snap = await getDocs(q)
-    if (snap.empty) throw new Error('Nombre o PIN incorrecto')
-
-    const docSnap = snap.docs[0]
-    const userData = { id: docSnap.id, ...docSnap.data() }
-    setUser(userData)
-    localStorage.setItem('tg_user', JSON.stringify(userData))
-    // Registrar token FCM en segundo plano (no bloqueante)
-    registerFCM(docSnap.id).catch(() => {})
-    return userData
+    try {
+      const res = await loginCallable({ name: name.trim(), pin: pin.trim() })
+      const { token, user: basicUser } = res.data
+      await signInWithCustomToken(auth, token)
+      // onAuthStateChanged también hidratará; hidratamos ya para devolver el rol
+      const fresh = await hydrate(basicUser.id).catch(() => null)
+      return fresh ?? basicUser
+    } catch (e) {
+      // Traducir errores de la Cloud Function al mensaje que la UI ya muestra
+      const code = e?.code || ''
+      if (code.includes('unauthenticated') || code.includes('invalid-argument')) {
+        throw new Error('Nombre o PIN incorrecto')
+      }
+      throw new Error(e?.message || 'No se pudo iniciar sesión')
+    }
   }
 
   async function updateUser(updates) {
@@ -62,7 +80,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem('tg_user', JSON.stringify(updated))
   }
 
-  function logout() {
+  async function logout() {
+    await signOut(auth).catch(() => {})
     setUser(null)
     localStorage.removeItem('tg_user')
   }
@@ -71,16 +90,15 @@ export function AuthProvider({ children }) {
     const snap = await getDocs(collection(db, 'users'))
     if (!snap.empty) throw new Error('Ya existen usuarios. Pide al coordinador que te añada.')
 
-    const ref = await addDoc(collection(db, 'users'), {
+    await addDoc(collection(db, 'users'), {
       name: name.trim(),
       pin: pin.trim(),
       role: 'coordinador',
       createdAt: serverTimestamp(),
     })
-    const userData = { id: ref.id, name: name.trim(), role: 'coordinador' }
-    setUser(userData)
-    localStorage.setItem('tg_user', JSON.stringify(userData))
-    return userData
+    // Iniciar sesión con el usuario recién creado vía la misma Cloud Function
+    // (así queda una sesión real de Firebase Auth y no se guarda el pin en cliente)
+    return login(name, pin)
   }
 
   return (
