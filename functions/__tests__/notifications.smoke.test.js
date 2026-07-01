@@ -386,4 +386,57 @@ describe('Push notification isolation — smoke tests', () => {
       expect(tokens).not.toContain('TOKEN_AV_B')
     })
   })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 6. sameDayReminders — recordatorio del mismo día, excluyendo "No puedo"
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('sameDayReminders — recordatorio mismo día', () => {
+    function setupDay ({ responses = [] } = {}) {
+      // Reunión de hoy con dos roles asignados
+      queryResults.set('schedules', [
+        mkDoc('sD', {
+          date: '2026-06-10T22:00:00.000Z',
+          dayType: 'Miércoles',
+          isAssamblea: false,
+          assignments: { audio: 'pAna', entrada: 'pBea' },
+        }),
+      ])
+      queryResults.set('people', [
+        mkDoc('pAna', { name: 'Ana' }),
+        mkDoc('pBea', { name: 'Bea' }),
+      ])
+      queryResults.set('users', [
+        mkDoc('uAna', { name: 'Ana', fcmToken: 'TOKEN_ANA' }),
+        mkDoc('uBea', { name: 'Bea', fcmToken: 'TOKEN_BEA' }),
+      ])
+      queryResults.set('responses', responses.map((r, i) => mkDoc(`resp${i}`, r)))
+    }
+
+    test('sin respuestas → ambos asignados reciben recordatorio', async () => {
+      setupDay()
+      await fns.sameDayReminders()
+      const tokens = mockSend.mock.calls.map(c => c[0].token)
+      expect(tokens).toEqual(expect.arrayContaining(['TOKEN_ANA', 'TOKEN_BEA']))
+    })
+
+    test('quien marcó "No puedo" queda excluido; el otro sí recibe', async () => {
+      setupDay({ responses: [
+        { scheduleId: 'sD', roleKey: 'entrada', response: 'nopuedo', createdAt: { toMillis: () => 1000 } },
+      ] })
+      await fns.sameDayReminders()
+      const tokens = mockSend.mock.calls.map(c => c[0].token)
+      expect(tokens).toContain('TOKEN_ANA')
+      expect(tokens).not.toContain('TOKEN_BEA')
+    })
+
+    test('última respuesta manda: "No puedo" y luego "Puedo" → sí recibe', async () => {
+      setupDay({ responses: [
+        { scheduleId: 'sD', roleKey: 'entrada', response: 'nopuedo', createdAt: { toMillis: () => 1000 } },
+        { scheduleId: 'sD', roleKey: 'entrada', response: 'puedo',   createdAt: { toMillis: () => 2000 } },
+      ] })
+      await fns.sameDayReminders()
+      const tokens = mockSend.mock.calls.map(c => c[0].token)
+      expect(tokens).toContain('TOKEN_BEA')
+    })
+  })
 })

@@ -46,8 +46,9 @@ async function sendPush(token, title, body) {
  * Push de recordatorio con botones Puedo / No puedo.
  * Se envía como mensaje data-only para que el SW lo muestre con las acciones.
  */
-async function sendReminderPush(token, rolesText, assignments) {
+async function sendReminderPush(token, rolesText, assignments, opts = {}) {
   if (!token) return
+  const { titlePrefix = '📅 Turno mañana', bodyPrefix = 'Te toca' } = opts
   try {
     const first = assignments[0] ?? {}
     const dateStr = first.scheduleDate
@@ -57,8 +58,8 @@ async function sendReminderPush(token, rolesText, assignments) {
       token,
       data: {
         type: 'reminder',
-        title: `📅 Turno mañana — ${dateStr}`,
-        body: `Te toca: ${rolesText}. ¿Puedes venir?`,
+        title: `${titlePrefix} — ${dateStr}`,
+        body: `${bodyPrefix}: ${rolesText}. ¿Puedes venir?`,
         assignments: JSON.stringify(assignments),
       },
       webpush: {
@@ -335,6 +336,107 @@ exports.dailyReminders = onSchedule(
 
     await Promise.all(sends)
     console.log(`Recordatorios enviados: ${sends.length}`)
+  }
+)
+
+/**
+ * FUNCIÓN 4b: El mismo día del turno por la mañana → recordatorio simple a los
+ * usuarios con turno HOY. Se EXCLUYE a quien ya haya marcado "No puedo" para ese
+ * turno (se comprueba la última respuesta por reunión + rol).
+ * Turnos: miércoles (3) y domingo (0).
+ */
+exports.sameDayReminders = onSchedule(
+  { schedule: '0 10 * * 0,3', timeZone: 'Europe/Madrid', region: 'europe-west1' },
+  async () => {
+    const getMadridStr = (d) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(d)
+
+    function madridMidnightUTC(dateStr) {
+      for (const off of ['+02:00', '+01:00']) {
+        const d = new Date(`${dateStr}T00:00:00${off}`)
+        if (getMadridStr(d) === dateStr) return d
+      }
+      return new Date(`${dateStr}T00:00:00+01:00`)
+    }
+
+    const now = new Date()
+    const [y, m, d] = getMadridStr(now).split('-').map(Number)
+    const todayMadrid    = getMadridStr(new Date(Date.UTC(y, m - 1, d, 12)))
+    const tomorrowMadrid = getMadridStr(new Date(Date.UTC(y, m - 1, d + 1, 12)))
+
+    const todayStart = madridMidnightUTC(todayMadrid)
+    const todayEnd   = madridMidnightUTC(tomorrowMadrid)
+
+    const schedSnap = await db.collection('schedules')
+      .where('date', '>=', todayStart.toISOString())
+      .where('date', '<', todayEnd.toISOString())
+      .get()
+
+    if (schedSnap.empty) return
+
+    const scheduleIds = schedSnap.docs.map(s => s.id)
+
+    const [peopleSnap, usersSnap, respSnap] = await Promise.all([
+      db.collection('people').get(),
+      db.collection('users').where('fcmToken', '!=', null).get(),
+      db.collection('responses').where('scheduleId', 'in', scheduleIds).get(),
+    ])
+
+    // Última respuesta por (scheduleId, roleKey); si es "No puedo" → excluir
+    const latestResp = new Map()
+    respSnap.docs.forEach(doc => {
+      const r = doc.data()
+      const key = `${r.scheduleId}_${r.roleKey}`
+      const ts = r.createdAt?.toMillis?.() ?? 0
+      const prev = latestResp.get(key)
+      if (!prev || ts >= prev.ts) latestResp.set(key, { response: r.response, ts })
+    })
+    const excluded = new Set(
+      [...latestResp.entries()].filter(([, v]) => v.response === 'nopuedo').map(([k]) => k)
+    )
+
+    const peopleMap = {}
+    peopleSnap.docs.forEach(dd => { peopleMap[dd.id] = dd.data() })
+    const usersByName = {}
+    usersSnap.docs.forEach(dd => { usersByName[dd.data().name] = dd.data() })
+
+    // Un push por usuario con sus roles de hoy (sin los que dijo "No puedo").
+    // Se agregan los assignments para que los botones Puedo/No puedo funcionen.
+    const tokenData = new Map() // token → { roles: string[], assignments: object[] }
+    schedSnap.docs.forEach(schedDoc => {
+      const sched = schedDoc.data()
+      if (sched.isAssamblea) return
+      Object.entries(sched.assignments || {}).forEach(([roleKey, personId]) => {
+        if (!personId) return
+        if (excluded.has(`${schedDoc.id}_${roleKey}`)) return
+        const person = peopleMap[personId]
+        if (!person) return
+        const userObj = usersByName[person.name]
+        if (!userObj?.fcmToken) return
+        const roleLabel = ROLE_LABELS[roleKey] ?? roleKey
+        const existing = tokenData.get(userObj.fcmToken) ?? { roles: [], assignments: [] }
+        existing.roles.push(roleLabel)
+        existing.assignments.push({
+          scheduleId: schedDoc.id,
+          roleKey,
+          personId,
+          personName: person.name,
+          scheduleDate: sched.date,
+          dayType: sched.dayType ?? '',
+        })
+        tokenData.set(userObj.fcmToken, existing)
+      })
+    })
+
+    const sends = []
+    tokenData.forEach(({ roles, assignments }, token) => {
+      sends.push(sendReminderPush(token, roles.join(', '), assignments, {
+        titlePrefix: '⏰ Turno hoy',
+        bodyPrefix: 'Hoy te toca',
+      }))
+    })
+
+    await Promise.all(sends)
+    console.log(`Recordatorios mismo día enviados: ${sends.length}`)
   }
 )
 
