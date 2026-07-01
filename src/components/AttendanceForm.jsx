@@ -77,10 +77,18 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
 
   async function share(sched) {
     const d = new Date(sched.date)
-    const dateStr = `${sched.dayType} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yy = String(d.getFullYear()).slice(-2)
     const presencial = Number(getValue(sched.id, 'presencial') || 0)
     const zoom = Number(getValue(sched.id, 'zoom') || 0)
-    const text = `Asistencia ${dateStr} — Presencial: ${presencial}, Zoom: ${zoom}, Total: ${presencial + zoom}`
+    const text = [
+      userName,
+      `Asistencia ${dd}/${mm}/${yy}`,
+      `Presencial: ${presencial}`,
+      `Zoom: ${zoom}`,
+      `Total: ${presencial + zoom}`,
+    ].filter(Boolean).join('\n')
     try {
       if (navigator.share) {
         await navigator.share({ text })
