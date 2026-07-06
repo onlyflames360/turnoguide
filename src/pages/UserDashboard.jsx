@@ -244,7 +244,7 @@ export default function UserDashboard() {
             <div className="mt-4 space-y-3">
               {nextSched && myPersonId && (
                 <div className="next-turn-card">
-                  <div>
+                  <div className="relative z-10" style={{ maxWidth: '58%' }}>
                     <p className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">
                       Próximo turno
                     </p>
@@ -256,10 +256,14 @@ export default function UserDashboard() {
                       <p className="text-indigo-200 text-xs mt-0.5">{nextTurnRoles}</p>
                     )}
                   </div>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
-                       style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                    🎵
-                  </div>
+                  <img
+                    src="/hero-turno.png"
+                    alt=""
+                    aria-hidden="true"
+                    draggable="false"
+                    className="absolute bottom-0 right-1 h-full w-auto object-contain object-bottom pointer-events-none select-none"
+                    style={{ maxWidth: '52%', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.25))' }}
+                  />
                 </div>
               )}
               <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
