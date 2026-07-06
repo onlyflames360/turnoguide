@@ -460,17 +460,11 @@ export default function UserDashboard() {
                                   >✗ No puedo</button>
                                 </div>
                               ) : isNoPuedo ? (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button
-                                    onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
-                                    disabled={isResponding}
-                                    className="py-3 text-sm font-bold rounded-xl text-white transition-all active:scale-95 disabled:opacity-50"
-                                    style={{ background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 4px 12px -2px rgba(16,185,129,0.35)' }}
-                                  >✓ Puedo</button>
-                                  <div className="flex items-center justify-center py-3 rounded-xl text-red-500 dark:text-red-400 text-sm font-bold border-2 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30">
-                                    ✗ No puedo
-                                  </div>
-                                </div>
+                                <button
+                                  onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
+                                  disabled={isResponding}
+                                  className="w-full py-3 text-sm font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 border-2 border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                                >↩ Cambiar a Puedo</button>
                               ) : (
                                 <div className="grid grid-cols-2 gap-2">
                                   <button
