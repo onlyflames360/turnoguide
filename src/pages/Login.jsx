@@ -121,10 +121,19 @@ export default function Login() {
 
         {/* Logo y título */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-5 rounded-[20px] bg-gradient-to-br from-indigo-600 to-violet-700
-                          flex items-center justify-center"
-               style={{ boxShadow: '0 0 40px rgba(99,102,241,0.45), 0 8px 24px rgba(0,0,0,0.35)' }}>
-            <img src="/logo.png" alt="TurnoGuide" className="h-9 w-9 object-contain" />
+          <div className="relative mx-auto mb-4 w-[230px] max-w-[70%]">
+            <div style={{
+              position: 'absolute', inset: '-10% -5% 5% -5%', pointerEvents: 'none',
+              background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.28) 0%, rgba(139,92,246,0.14) 45%, transparent 72%)',
+              filter: 'blur(6px)',
+            }} />
+            <img
+              src="/hero.png"
+              alt="TurnoGuide"
+              className="relative w-full h-auto object-contain select-none"
+              draggable="false"
+              style={{ filter: 'drop-shadow(0 12px 28px rgba(0,0,0,0.55))' }}
+            />
           </div>
           <h1 className="text-[28px] font-extrabold text-white"
               style={{ letterSpacing: '-0.04em' }}>
