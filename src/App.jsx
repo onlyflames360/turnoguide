@@ -61,7 +61,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to={user ? homeFor(user.role) : '/login'} replace />} />
     </Routes>
   )
 }

@@ -6,34 +6,39 @@ import { registerFCM } from '../firebase/messaging'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Lee la sesión guardada de forma SÍNCRONA en el primer render: así, si el
+  // usuario no ha salido, entra directo a su perfil sin parpadeo del login.
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tg_user')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      localStorage.removeItem('tg_user')
+      return null
+    }
+  })
+  const [loading] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('tg_user')
-    if (saved) {
-      try {
-        const cached = JSON.parse(saved)
-        // Releer de Firestore para recoger cambios de rol (ej. migración ayudante → ayudante_av)
-        getDoc(doc(db, 'users', cached.id)).then(snap => {
-          if (snap.exists()) {
-            const fresh = { id: snap.id, ...snap.data() }
-            setUser(fresh)
-            localStorage.setItem('tg_user', JSON.stringify(fresh))
-            registerFCM(fresh.id).catch(() => {})
-          } else {
-            localStorage.removeItem('tg_user')
-            setLoading(false)
-          }
-        }).catch(() => {
-          // Si falla la red, usar datos cacheados
-          setUser(cached)
-          registerFCM(cached.id).catch(() => {})
-        }).finally(() => setLoading(false))
-        return
-      } catch { localStorage.removeItem('tg_user') }
-    }
-    setLoading(false)
+    if (!user?.id) return
+    // Releer de Firestore en segundo plano para recoger cambios de rol
+    // (ej. migración ayudante → ayudante_av) sin bloquear la primera pantalla.
+    getDoc(doc(db, 'users', user.id)).then(snap => {
+      if (snap.exists()) {
+        const fresh = { id: snap.id, ...snap.data() }
+        setUser(fresh)
+        localStorage.setItem('tg_user', JSON.stringify(fresh))
+        registerFCM(fresh.id).catch(() => {})
+      } else {
+        // La cuenta ya no existe: cerrar sesión
+        localStorage.removeItem('tg_user')
+        setUser(null)
+      }
+    }).catch(() => {
+      // Sin red: seguimos con los datos cacheados
+      registerFCM(user.id).catch(() => {})
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function login(name, pin) {
