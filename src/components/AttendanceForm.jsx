@@ -6,9 +6,9 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 
 /**
  * Contador de asistencia para la persona asignada a Auditorio.
- * Solo aparece para las reuniones donde el usuario tiene Auditorio, ha confirmado
- * "Puedo" y ya ha llegado el día. Permite registrar presencial + Zoom, compartirlo
- * a otras apps y guardarlo (queda registrado para el ayudante acomodador).
+ * Aparece para las reuniones donde el usuario tiene Auditorio y ya ha llegado el
+ * día, salvo que haya respondido "No puedo". Permite registrar presencial + Zoom,
+ * compartirlo a otras apps y guardarlo (queda registrado para el ayudante acomodador).
  */
 export default function AttendanceForm({ schedules, myPersonId, userName, myResponses = {} }) {
   const [records, setRecords] = useState({}) // scheduleId → { presencial, zoom }
@@ -16,7 +16,7 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
   const [savingId, setSavingId] = useState(null)
   const [savedId, setSavedId] = useState(null)
 
-  // Reuniones de Auditorio confirmadas con "Puedo" cuyo día ya ha llegado
+  // Reuniones de Auditorio cuyo día ya ha llegado, salvo que haya dicho "No puedo"
   const myMeetings = useMemo(() => {
     if (!myPersonId) return []
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -24,7 +24,7 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
       .filter(s => {
         if (s.isAssamblea || s.assignments?.auditorio !== myPersonId) return false
         const resp = myResponses[`${s.id}_auditorio`]
-        if (resp?.response !== 'puedo') return false
+        if (resp?.response === 'nopuedo') return false // solo se excluye a quien dijo "No puedo"
         const d = new Date(s.date); d.setHours(0, 0, 0, 0)
         return d <= today // solo el día de la reunión (y después, hasta guardarlo)
       })
