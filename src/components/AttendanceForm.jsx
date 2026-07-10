@@ -16,7 +16,7 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
   const [savingId, setSavingId] = useState(null)
   const [savedId, setSavedId] = useState(null)
 
-  // Reuniones de Auditorio cuyo día ya ha llegado, salvo que haya dicho "No puedo"
+  // Reuniones de Auditorio SOLO el día del turno, salvo que haya dicho "No puedo"
   const myMeetings = useMemo(() => {
     if (!myPersonId) return []
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -26,7 +26,7 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
         const resp = myResponses[`${s.id}_auditorio`]
         if (resp?.response === 'nopuedo') return false // solo se excluye a quien dijo "No puedo"
         const d = new Date(s.date); d.setHours(0, 0, 0, 0)
-        return d <= today // solo el día de la reunión (y después, hasta guardarlo)
+        return d.getTime() === today.getTime() // solo el día del turno de Auditorio
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date))
   }, [schedules, myPersonId, myResponses])
