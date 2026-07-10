@@ -87,7 +87,7 @@ export default function Header() {
         {/* Logo + nombre */}
         <div className="flex items-center gap-2.5 min-w-0">
           <img
-            src="/logo.png"
+            src="/hero-avatar.png"
             alt="Recursos AV Villajoyosa"
             className="h-9 w-9 rounded-[10px] object-cover shrink-0"
             style={{ boxShadow: '0 4px 12px rgba(79,70,229,0.35)' }}
