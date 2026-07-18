@@ -4,6 +4,7 @@ import { signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/aut
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { db, auth, app } from '../firebase/config'
 import { registerFCM } from '../firebase/messaging'
+import { updateAppBadge } from '../utils/appBadge'
 
 const AuthContext = createContext(null)
 
@@ -81,6 +82,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    updateAppBadge(0)
     await signOut(auth).catch(() => {})
     setUser(null)
     localStorage.removeItem('tg_user')

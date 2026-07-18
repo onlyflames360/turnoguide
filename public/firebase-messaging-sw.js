@@ -28,7 +28,7 @@ messaging.onBackgroundMessage((payload) => {
     const { title, body, roleLabel, senderName } = payload.data
     self.registration.showNotification(title, {
       body,
-      icon: `${APP_URL}/logo.png`,
+      icon: `${APP_URL}/hero-avatar.png`,
       badge: `${APP_URL}/logo.png`,
       vibrate: [500, 100, 500, 100, 500, 100, 500],
       requireInteraction: true,
@@ -44,7 +44,7 @@ messaging.onBackgroundMessage((payload) => {
     const assignments = JSON.parse(payload.data.assignments || '[]')
     self.registration.showNotification(payload.data.title, {
       body: payload.data.body,
-      icon: `${APP_URL}/logo.png`,
+      icon: `${APP_URL}/hero-avatar.png`,
       badge: `${APP_URL}/logo.png`,
       vibrate: [200, 100, 200],
       requireInteraction: true,
@@ -62,7 +62,7 @@ messaging.onBackgroundMessage((payload) => {
   if (!title) return
   self.registration.showNotification(title, {
     body: body ?? '',
-    icon: `${APP_URL}/logo.png`,
+    icon: `${APP_URL}/hero-avatar.png`,
     badge: `${APP_URL}/logo.png`,
     vibrate: [200, 100, 200],
     requireInteraction: true,
@@ -102,7 +102,7 @@ self.addEventListener('notificationclick', (event) => {
             body: action === 'puedo'
               ? 'Tu asistencia ha sido confirmada.'
               : 'El coordinador ha sido notificado.',
-            icon: `${APP_URL}/logo.png`,
+            icon: `${APP_URL}/hero-avatar.png`,
             badge: `${APP_URL}/logo.png`,
           }
         )

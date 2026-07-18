@@ -13,6 +13,7 @@ import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
 import { ROLES } from '../utils/scheduleGenerator'
 import { showNotification } from '../utils/notifications'
+import { updateAppBadge } from '../utils/appBadge'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -36,6 +37,9 @@ export default function UserDashboard() {
   const now = new Date()
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
   const [viewYear, setViewYear] = useState(now.getFullYear())
+
+  // Número de no leídos en el icono de la app (avisos + solicitudes de sustitución)
+  useEffect(() => { updateAppBadge(notifBadge + substBadge) }, [notifBadge, substBadge])
 
   // Listener de alertas de emergencia — solo docs nuevos desde que montó la página
   useEffect(() => {

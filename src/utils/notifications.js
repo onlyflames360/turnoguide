@@ -13,7 +13,7 @@ export function showNotification(title, body, options = {}) {
   try {
     new Notification(title, {
       body,
-      icon: '/logo.png',
+      icon: '/hero-avatar.png',
       badge: '/logo.png',
       ...options,
     })

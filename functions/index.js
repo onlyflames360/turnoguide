@@ -30,7 +30,7 @@ async function sendPush(token, title, body) {
       webpush: {
         notification: {
           title, body,
-          icon: `${APP_URL}/logo.png`,
+          icon: `${APP_URL}/hero-avatar.png`,
           badge: `${APP_URL}/logo.png`,
           vibrate: [200, 100, 200],
           requireInteraction: true,

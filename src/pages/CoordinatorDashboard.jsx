@@ -18,6 +18,7 @@ async function exportSchedulePdf(...args) {
   return fn(...args)
 }
 import { requestNotificationPermission } from '../utils/notifications'
+import { updateAppBadge } from '../utils/appBadge'
 import { onForegroundMessage } from '../firebase/messaging'
 import { ROLES } from '../utils/scheduleGenerator'
 
@@ -66,6 +67,9 @@ export default function CoordinatorDashboard() {
     const unsubFCM = onForegroundMessage(() => {}) // mantiene el SW activo
     return unsubFCM
   }, [])
+
+  // Número de no leídos en el icono de la app (notificaciones de disponibilidad)
+  useEffect(() => { updateAppBadge(notifBadge) }, [notifBadge])
 
   const myPersonId = useMemo(
     () => people.find(p => p.name === user?.name)?.id ?? null,

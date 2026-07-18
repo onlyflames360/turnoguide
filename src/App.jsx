@@ -13,7 +13,7 @@ function RouteLoader() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="text-center">
         <img
-          src="/logo.png"
+          src="/hero-avatar.png"
           alt="TurnoGuide"
           className="h-16 w-16 object-contain mx-auto mb-3 animate-pulse"
         />
