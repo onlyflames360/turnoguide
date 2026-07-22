@@ -6,19 +6,25 @@ import ChangeModal from './ChangeModal'
 
 function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId }) {
   const [editing, setEditing] = useState(null) // { schedule, roleKey }
-  const [saving, setSaving] = useState(false)
+  const [openPast, setOpenPast] = useState(() => new Set()) // ids de fechas pasadas desplegadas
+
+  function togglePast(id) {
+    setOpenPast(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   const personName = (pid) => people.find(p => p.id === pid)?.name ?? '—'
   const isMe = (pid) => pid === userId
 
   async function handleChange(roleKey, newPersonId) {
     if (!editing) return
-    setSaving(true)
     const ref = doc(db, 'schedules', editing.schedule.id)
     await updateDoc(ref, {
       [`assignments.${roleKey}`]: newPersonId ?? null
     })
-    setSaving(false)
     setEditing(null)
   }
 
@@ -63,6 +69,16 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
 
   const sectionEntries = Object.entries(SECTIONS)
 
+  // Una fecha es "pasada" si su día ya quedó atrás; el turno que toca es el
+  // primero con fecha >= hoy, y ese y los siguientes se ven siempre enteros.
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const isPast = (sched) => {
+    const d = new Date(sched.date)
+    d.setHours(0, 0, 0, 0)
+    return d < today
+  }
+
   return (
     <>
       {/* Vista escritorio */}
@@ -71,7 +87,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
           <thead>
             <tr>
               <th className="text-left p-3 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 rounded-tl-lg border-b border-slate-200 dark:border-slate-700 w-28">Fecha</th>
-              {sectionEntries.map(([sec, { label, cols }]) => (
+              {sectionEntries.map(([sec, { cols }]) => (
                 cols.map((col, i) => {
                   const role = ROLES.find(r => r.key === col)
                   return (
@@ -107,7 +123,6 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
           </thead>
           <tbody>
             {schedules.map((sched) => {
-              const d = new Date(sched.date)
               const dayStr = sched.dayType
               const dateStr = formatDateShort(sched.date)
               const isSunday = sched.dayType === 'Domingo'
@@ -122,7 +137,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                     <div>{dateStr}</div>
                   </td>
 
-                  {sectionEntries.map(([sec, { cols }]) =>
+                  {sectionEntries.map(([, { cols }]) =>
                     cols.map((col, i) => {
                       const pid = sched.assignments?.[col]
                       const name = sched.isAssamblea ? 'Asamblea' : personName(pid)
@@ -196,13 +211,19 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
       <div className="lg:hidden space-y-3">
         {schedules.map(sched => {
           const isSunday = sched.dayType === 'Domingo'
+          const past = isPast(sched)
+          const collapsed = past && !openPast.has(sched.id)
           return (
             <div key={sched.id} className={`rounded-2xl border overflow-hidden ${isSunday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
-              <div className={`px-4 py-2.5 flex items-center justify-between ${isSunday ? 'text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}
-                   style={isSunday ? { background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' } : {}}>
-                <span className="font-bold text-sm">{sched.dayType} {formatDateShort(sched.date)}</span>
+              <div className={`px-4 py-2.5 flex items-center justify-between ${past ? 'cursor-pointer' : ''} ${isSunday ? 'text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}
+                   style={isSunday ? { background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' } : {}}
+                   onClick={past ? () => togglePast(sched.id) : undefined}>
+                <span className="font-bold text-sm flex items-center gap-1.5">
+                  {past && <span className="text-xs opacity-70">{collapsed ? '▸' : '▾'}</span>}
+                  {sched.dayType} {formatDateShort(sched.date)}
+                </span>
                 {isCoordinator && (
-                  <div className="flex gap-1">
+                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => toggleAssamblea(sched)}
                       className={`text-xs px-2 py-0.5 rounded ${isSunday ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}
@@ -228,7 +249,7 @@ function ScheduleTable({ schedules, people, allSchedules, isCoordinator, userId 
                   </div>
                 )}
               </div>
-              {sched.isAssamblea ? (
+              {collapsed ? null : sched.isAssamblea ? (
                 <div className="p-4 text-center text-slate-500 italic text-sm">Asamblea</div>
               ) : (
                 <div className="grid grid-cols-2 gap-2 p-3">
