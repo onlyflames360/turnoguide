@@ -12,7 +12,7 @@ import ProfileAvatar from '../components/ProfileAvatar'
 import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
 import { ROLES } from '../utils/scheduleGenerator'
-import { showNotification } from '../utils/notifications'
+import Toast from '../components/Toast'
 import { updateAppBadge } from '../utils/appBadge'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -30,6 +30,7 @@ export default function UserDashboard() {
   const [mySolicitudes, setMySolicitudes] = useState([])
   const [answeringId, setAnsweringId] = useState(null)
   const [emergencyAlert, setEmergencyAlert] = useState(null)
+  const [toast, setToast] = useState(null)
   const mountTime = useRef(Timestamp.now())
   const isAyudante = user?.role === 'ayudante_av' || user?.role === 'ayudante_ac' || user?.role === 'ayudante'
   const roleSection = user?.role === 'ayudante_av' ? 'av' : user?.role === 'ayudante_ac' ? 'ac' : null
@@ -151,12 +152,10 @@ export default function UserDashboard() {
         createdAt: serverTimestamp(),
         seen: false,
       })
-      if (response === 'nopuedo') {
-        showNotification(
-          '❌ Respuesta enviada',
-          `Has indicado que no puedes el ${schedule.dayType}. El coordinador ha sido notificado.`
-        )
-      }
+      setToast(response === 'nopuedo'
+        ? { text: `Enviado: no puedes el ${schedule.dayType} en ${roleLabel}. El coordinador ha sido avisado.`, tone: 'alert' }
+        : { text: `Confirmado el ${schedule.dayType} en ${roleLabel}.`, tone: 'ok' }
+      )
     } finally {
       setRespondingKey(null)
     }
@@ -223,6 +222,7 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <EmergencyModal emergency={emergencyAlert} onClose={() => setEmergencyAlert(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
@@ -493,12 +493,9 @@ export default function UserDashboard() {
                                   <button
                                     onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
                                     disabled={isResponding}
-                                    className="py-3 text-sm font-bold rounded-xl text-white transition-all active:scale-95 disabled:opacity-50"
-                                    style={{ background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 4px 12px -2px rgba(16,185,129,0.35)' }}
+                                    className="py-3 text-sm font-bold rounded-xl border-2 border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 transition-all active:scale-95 disabled:opacity-50"
                                   >✓ Puedo</button>
-                                  <div className="flex items-center justify-center py-3 rounded-xl text-red-500 dark:text-red-400 text-sm font-bold border-2 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30">
-                                    ✗ No puedo
-                                  </div>
+                                  <div className="btn-nopuedo col-span-1">✗ No puedes — avisado</div>
                                 </div>
                               ) : (
                                 <div className="grid grid-cols-2 gap-2">

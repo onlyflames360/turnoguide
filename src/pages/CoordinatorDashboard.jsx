@@ -12,12 +12,13 @@ import AttendanceTab from '../components/AttendanceTab'
 import AttendanceForm from '../components/AttendanceForm'
 import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
+import Toast from '../components/Toast'
 // jsPDF se carga solo cuando el usuario pulsa "Descargar PDF" (~95 kB menos en carga inicial)
 async function exportSchedulePdf(...args) {
   const { exportSchedulePdf: fn } = await import('../utils/exportPdf')
   return fn(...args)
 }
-import { requestNotificationPermission, showNotification } from '../utils/notifications'
+import { requestNotificationPermission } from '../utils/notifications'
 import { updateAppBadge } from '../utils/appBadge'
 import { onForegroundMessage } from '../firebase/messaging'
 import { ROLES } from '../utils/scheduleGenerator'
@@ -40,6 +41,7 @@ export default function CoordinatorDashboard() {
   const [mySolicitudes, setMySolicitudes] = useState([])
   const [answeringId, setAnsweringId] = useState(null)
   const [emergencyAlert, setEmergencyAlert] = useState(null)
+  const [toast, setToast] = useState(null)
   const mountTime = useRef(Timestamp.now())
 
   const now = new Date()
@@ -120,12 +122,10 @@ export default function CoordinatorDashboard() {
         createdAt: serverTimestamp(),
         seen: false,
       })
-      if (response === 'nopuedo') {
-        showNotification(
-          '❌ Respuesta enviada',
-          `Has indicado que no puedes el ${schedule.dayType}. El coordinador ha sido notificado.`
-        )
-      }
+      setToast(response === 'nopuedo'
+        ? { text: `Enviado: no puedes el ${schedule.dayType} en ${roleLabel}. El ayudante de sección ha sido avisado.`, tone: 'alert' }
+        : { text: `Confirmado el ${schedule.dayType} en ${roleLabel}.`, tone: 'ok' }
+      )
     } finally {
       setRespondingKey(null)
     }
@@ -238,6 +238,7 @@ export default function CoordinatorDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <EmergencyModal emergency={emergencyAlert} onClose={() => setEmergencyAlert(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-5">
 
