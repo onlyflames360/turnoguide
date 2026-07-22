@@ -14,6 +14,7 @@ import EmergencyModal from '../components/EmergencyModal'
 import { ROLES } from '../utils/scheduleGenerator'
 import Toast from '../components/Toast'
 import { playPuedo, playNoPuedo } from '../utils/sounds'
+import { removePreviousResponses } from '../utils/responses'
 import { updateAppBadge } from '../utils/appBadge'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -144,6 +145,8 @@ export default function UserDashboard() {
     if (response === 'nopuedo') playNoPuedo(); else playPuedo()
     setRespondingKey(key)
     try {
+      // Evita acumular varias respuestas del mismo hueco (ver utils/responses)
+      await removePreviousResponses({ scheduleId: schedule.id, roleKey, personId: myPersonId })
       await addDoc(collection(db, 'responses'), {
         scheduleId: schedule.id,
         scheduleDate: schedule.date,

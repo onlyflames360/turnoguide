@@ -14,6 +14,7 @@ import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
 import Toast from '../components/Toast'
 import { playPuedo, playNoPuedo } from '../utils/sounds'
+import { removePreviousResponses } from '../utils/responses'
 // jsPDF se carga solo cuando el usuario pulsa "Descargar PDF" (~95 kB menos en carga inicial)
 async function exportSchedulePdf(...args) {
   const { exportSchedulePdf: fn } = await import('../utils/exportPdf')
@@ -116,6 +117,8 @@ export default function CoordinatorDashboard() {
     if (response === 'nopuedo') playNoPuedo(); else playPuedo()
     setRespondingKey(key)
     try {
+      // Evita acumular varias respuestas del mismo hueco (ver utils/responses)
+      await removePreviousResponses({ scheduleId: schedule.id, roleKey, personId: myPersonId })
       await addDoc(collection(db, 'responses'), {
         scheduleId: schedule.id,
         scheduleDate: schedule.date,

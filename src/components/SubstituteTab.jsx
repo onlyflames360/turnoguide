@@ -42,10 +42,25 @@ export default function SubstituteTab({ schedules, people, onBadgeChange, roleSe
       const all = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(r => r.response === 'nopuedo' && r.scheduleId !== 'test')
-      setResponses(all)
+
+      // Red de seguridad ante respuestas duplicadas del mismo hueco (las que ya
+      // hubiera guardadas de antes): de las pendientes se muestra solo la más
+      // reciente. La consulta viene ordenada por fecha descendente, así que la
+      // primera que aparece de cada hueco es la buena. Las resueltas se dejan
+      // todas, que son historial.
+      const seen = new Set()
+      const deduped = all.filter(r => {
+        if (r.resolved) return true
+        const key = `${r.scheduleId}_${r.roleKey}_${r.personId}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
+      setResponses(deduped)
       const sectionAll = roleSection
-        ? all.filter(r => roleSection === 'av' ? AV_ROLE_KEYS.has(r.roleKey) : AC_ROLE_KEYS.has(r.roleKey))
-        : all
+        ? deduped.filter(r => roleSection === 'av' ? AV_ROLE_KEYS.has(r.roleKey) : AC_ROLE_KEYS.has(r.roleKey))
+        : deduped
       onBadgeChange?.(sectionAll.filter(r => !r.resolved).length)
     })
   }, [roleSection])
