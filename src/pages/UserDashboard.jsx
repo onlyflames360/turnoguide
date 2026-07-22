@@ -13,6 +13,7 @@ import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
 import { ROLES } from '../utils/scheduleGenerator'
 import Toast from '../components/Toast'
+import { playPuedo, playNoPuedo } from '../utils/sounds'
 import { updateAppBadge } from '../utils/appBadge'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -138,6 +139,9 @@ export default function UserDashboard() {
 
   async function handleResponse(schedule, roleKey, roleLabel, response) {
     const key = `${schedule.id}_${roleKey}`
+    // Suena en el mismo gesto del toque: es lo que exigen los navegadores
+    // móviles para permitir audio, y da respuesta inmediata sin esperar a la red.
+    if (response === 'nopuedo') playNoPuedo(); else playPuedo()
     setRespondingKey(key)
     try {
       await addDoc(collection(db, 'responses'), {

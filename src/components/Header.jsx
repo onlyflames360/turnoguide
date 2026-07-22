@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { registerFCM } from '../firebase/messaging'
 import { useTheme } from '../hooks/useTheme'
+import { useSound } from '../hooks/useSound'
 
 /* Iconos SVG inline — sin dependencias, tree-shakeable */
 function IconBell() {
@@ -45,11 +46,28 @@ function IconMoon() {
   )
 }
 
+function IconSound() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a6.99 6.99 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23z" />
+    </svg>
+  )
+}
+
+function IconSoundOff() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+      <path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.9 8.9 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.94 8.94 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+    </svg>
+  )
+}
+
 export default function Header() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [pushStatus, setPushStatus] = useState('unknown')
   const { isDark, toggle: toggleTheme } = useTheme()
+  const { soundOn, toggleSound } = useSound()
 
   useEffect(() => {
     if (!('Notification' in window)) { setPushStatus('off'); return }
@@ -130,6 +148,17 @@ export default function Header() {
               <IconBellBlocked />
             </span>
           )}
+
+          {/* Botón sonido de los botones Puedo / No puedo */}
+          <button
+            onClick={toggleSound}
+            title={soundOn ? 'Silenciar sonidos' : 'Activar sonidos'}
+            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors active:scale-95 duration-150"
+            aria-label={soundOn ? 'Silenciar sonidos' : 'Activar sonidos'}
+            aria-pressed={soundOn}
+          >
+            {soundOn ? <IconSound /> : <IconSoundOff />}
+          </button>
 
           {/* Botón tema claro/oscuro */}
           <button

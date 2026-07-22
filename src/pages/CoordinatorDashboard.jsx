@@ -13,6 +13,7 @@ import AttendanceForm from '../components/AttendanceForm'
 import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
 import Toast from '../components/Toast'
+import { playPuedo, playNoPuedo } from '../utils/sounds'
 // jsPDF se carga solo cuando el usuario pulsa "Descargar PDF" (~95 kB menos en carga inicial)
 async function exportSchedulePdf(...args) {
   const { exportSchedulePdf: fn } = await import('../utils/exportPdf')
@@ -110,6 +111,9 @@ export default function CoordinatorDashboard() {
 
   async function handleResponse(schedule, roleKey, roleLabel, response) {
     const key = `${schedule.id}_${roleKey}`
+    // Suena en el mismo gesto del toque: es lo que exigen los navegadores
+    // móviles para permitir audio, y da respuesta inmediata sin esperar a la red.
+    if (response === 'nopuedo') playNoPuedo(); else playPuedo()
     setRespondingKey(key)
     try {
       await addDoc(collection(db, 'responses'), {
