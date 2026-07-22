@@ -479,23 +479,25 @@ export default function UserDashboard() {
                               <span className="inline-block bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 mb-2">
                                 {role.label}
                               </span>
+                              {/* El estado elegido ocupa 2/3 del ancho y va en solido;
+                                  la opcion contraria queda pequeña y con borde. */}
                               {isConfirmed ? (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="btn-confirm col-span-1">✓ Confirmado</div>
+                                <div className="grid grid-cols-3 gap-2 items-stretch">
+                                  <div className="btn-confirm col-span-2">✓ Confirmado</div>
                                   <button
                                     onClick={() => handleResponse(sched, role.key, role.label, 'nopuedo')}
                                     disabled={isResponding}
-                                    className="py-3 text-sm font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 border-2 border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                                    className="col-span-1 py-3 px-1 text-xs font-bold rounded-xl leading-tight transition-all active:scale-95 disabled:opacity-50 border-2 border-red-200 dark:border-red-800/60 text-red-500 dark:text-red-300 bg-red-50 dark:bg-red-950/30"
                                   >✗ No puedo</button>
                                 </div>
                               ) : isNoPuedo ? (
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-3 gap-2 items-stretch">
                                   <button
                                     onClick={() => handleResponse(sched, role.key, role.label, 'puedo')}
                                     disabled={isResponding}
-                                    className="py-3 text-sm font-bold rounded-xl border-2 border-green-200 dark:border-green-900/50 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 transition-all active:scale-95 disabled:opacity-50"
+                                    className="col-span-1 py-3 px-1 text-xs font-bold rounded-xl leading-tight border-2 border-green-200 dark:border-green-800/60 text-green-600 dark:text-green-300 bg-green-50 dark:bg-green-950/30 transition-all active:scale-95 disabled:opacity-50"
                                   >✓ Puedo</button>
-                                  <div className="btn-nopuedo col-span-1">✗ No puedes — avisado</div>
+                                  <div className="btn-nopuedo col-span-2">✗ No puedes</div>
                                 </div>
                               ) : (
                                 <div className="grid grid-cols-2 gap-2">
