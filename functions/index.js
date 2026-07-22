@@ -525,3 +525,24 @@ exports.login = onCall(
     }
   }
 )
+
+/**
+ * Lista de nombres para el autocompletado del login.
+ *
+ * La pantalla de login necesita los nombres antes de que exista sesión, pero la
+ * colección `users` guarda también el PIN, así que no puede leerse desde el
+ * cliente. Esta función devuelve únicamente los nombres.
+ */
+exports.userNames = onCall(
+  { region: 'europe-west1' },
+  async () => {
+    const snap = await db.collection('users').get()
+    const names = snap.docs
+      .map(d => d.data().name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'es'))
+
+    // `empty` permite a la pantalla de alta inicial saber si aún no hay nadie
+    return { names, empty: snap.empty }
+  }
+)

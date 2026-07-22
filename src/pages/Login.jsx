@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, getDocs } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { app } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
+
+// Los nombres del autocompletado los sirve el servidor: la colección `users`
+// guarda el PIN y no puede leerse desde el cliente.
+const userNamesCallable = httpsCallable(getFunctions(app, 'europe-west1'), 'userNames')
 
 function SpinnerIcon() {
   return (
@@ -42,9 +46,9 @@ export default function Login() {
   const pinRef = useRef(null)
 
   useEffect(() => {
-    getDocs(collection(db, 'users')).then(snap => {
-      setUserNames(snap.docs.map(d => d.data().name).filter(Boolean).sort())
-    })
+    userNamesCallable()
+      .then(res => setUserNames(res.data?.names ?? []))
+      .catch(() => setUserNames([])) // sin sugerencias, pero se puede entrar igual
   }, [])
 
   function handleNameChange(e) {
@@ -83,10 +87,12 @@ export default function Login() {
 
   async function handleCheckSetup() {
     setCheckingSetup(true)
-    const snap = await getDocs(collection(db, 'users'))
-    setShowSetup(snap.empty)
+    const empty = await userNamesCallable()
+      .then(res => res.data?.empty ?? false)
+      .catch(() => false)
+    setShowSetup(empty)
     setCheckingSetup(false)
-    if (!snap.empty) setError('Ya hay usuarios registrados. Ingresa con tu nombre y PIN.')
+    if (!empty) setError('Ya hay usuarios registrados. Ingresa con tu nombre y PIN.')
   }
 
   async function handleSetup(e) {

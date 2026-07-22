@@ -1,10 +1,38 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Por ahora permite lectura/escritura autenticada desde la app
-    // Puedes restringir más según necesidades
-    match /{document=**} {
-      allow read, write: if true;
+
+    function signedIn() {
+      return request.auth != null;
     }
+
+    // El rol viene como custom claim en el token que emite la Cloud Function
+    // `login` (functions/index.js).
+    function isCoordinator() {
+      return signedIn() && request.auth.token.role == 'coordinador';
+    }
+
+    // ── users ───────────────────────────────────────────────────────────────
+    // Contiene el PIN, así que es la colección más sensible: cada uno accede
+    // solo a su propio documento (el uid es el id del documento) y el
+    // coordinador gestiona a todos. La Cloud Function de login usa el SDK de
+    // administración, que no pasa por estas reglas, así que entrar sigue
+    // funcionando aunque nadie pueda leer la colección.
+    match /users/{userId} {
+      allow read, update: if isCoordinator() || (signedIn() && request.auth.uid == userId);
+      allow create, delete: if isCoordinator();
+    }
+
+    // ── Resto de la app ─────────────────────────────────────────────────────
+    // Basta con tener sesión. No se usa un comodín recursivo a propósito: al
+    // conceder acceso si CUALQUIER regla lo permite, un `match /{doc=**}` se
+    // saltaría lo anterior y dejaría los PINs al alcance de cualquiera.
+    match /schedules/{doc=**}   { allow read, write: if signedIn(); }
+    match /people/{doc=**}      { allow read, write: if signedIn(); }
+    match /responses/{doc=**}   { allow read, write: if signedIn(); }
+    match /solicitudes/{doc=**} { allow read, write: if signedIn(); }
+    match /asistencia/{doc=**}  { allow read, write: if signedIn(); }
+    match /emergencias/{doc=**} { allow read, write: if signedIn(); }
+    match /settings/{doc=**}    { allow read, write: if signedIn(); }
   }
 }
