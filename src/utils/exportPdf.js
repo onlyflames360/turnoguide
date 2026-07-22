@@ -48,7 +48,6 @@ export function exportSchedulePdf(schedules, people, month, year) {
   ]
 
   const body = schedules.map(s => {
-    const d = new Date(s.date)
     const dateStr = `${s.dayType}\n${formatDateShort(s.date)}`
     const isSunday = s.dayType === 'Domingo'
 

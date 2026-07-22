@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, addDoc, deleteDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, doc, addDoc, deleteDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import { ROLES } from '../utils/scheduleGenerator'

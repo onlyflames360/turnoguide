@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { getMonthDates, generateSchedule } from '../utils/scheduleGenerator'
 

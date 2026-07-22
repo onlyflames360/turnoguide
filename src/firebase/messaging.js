@@ -35,7 +35,7 @@ export async function registerFCM(userId) {
 export function onForegroundMessage(callback) {
   try {
     return onMessage(getMsg(), callback)
-  } catch (e) {
+  } catch {
     return () => {}
   }
 }
