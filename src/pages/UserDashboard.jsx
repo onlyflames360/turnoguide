@@ -497,7 +497,7 @@ export default function UserDashboard() {
                                     disabled={isResponding}
                                     className="col-span-1 py-3 px-1 text-xs font-bold rounded-xl leading-tight border-2 border-green-200 dark:border-green-800/60 text-green-600 dark:text-green-300 bg-green-50 dark:bg-green-950/30 transition-all active:scale-95 disabled:opacity-50"
                                   >✓ Puedo</button>
-                                  <div className="btn-nopuedo col-span-2">✗ No puedes</div>
+                                  <div className="btn-nopuedo col-span-2 px-2 leading-tight">✗ No puedes — avisado</div>
                                 </div>
                               ) : (
                                 <div className="grid grid-cols-2 gap-2">
