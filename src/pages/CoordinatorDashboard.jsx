@@ -17,7 +17,7 @@ async function exportSchedulePdf(...args) {
   const { exportSchedulePdf: fn } = await import('../utils/exportPdf')
   return fn(...args)
 }
-import { requestNotificationPermission } from '../utils/notifications'
+import { requestNotificationPermission, showNotification } from '../utils/notifications'
 import { updateAppBadge } from '../utils/appBadge'
 import { onForegroundMessage } from '../firebase/messaging'
 import { ROLES } from '../utils/scheduleGenerator'
@@ -26,14 +26,13 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth()
-  const [tab, setTab] = useState('schedule')
+  const [tab, setTab] = useState('myturnos')
   const [schedules, setSchedules] = useState([])
   const [people, setPeople] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [, setRefreshKey] = useState(0)
   const [notifBadge, setNotifBadge] = useState(0)
-  const isFirstLoad = useRef(true)
 
   // Mis turnos
   const [myResponses, setMyResponses] = useState({})
@@ -121,6 +120,12 @@ export default function CoordinatorDashboard() {
         createdAt: serverTimestamp(),
         seen: false,
       })
+      if (response === 'nopuedo') {
+        showNotification(
+          '❌ Respuesta enviada',
+          `Has indicado que no puedes el ${schedule.dayType}. El coordinador ha sido notificado.`
+        )
+      }
     } finally {
       setRespondingKey(null)
     }
@@ -463,6 +468,33 @@ export default function CoordinatorDashboard() {
                     )
                   })}
                 </div>
+              )}
+            </div>
+
+            {/* Horario del mes — mismo cuadrante que ve el usuario (solo lectura) */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-slate-800">Horario mensual</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={prevMonth} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 flex items-center justify-center text-slate-500 transition-colors active:scale-95">‹</button>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 min-w-32 text-center" style={{ letterSpacing: '-0.02em' }}>{MONTHS[viewMonth - 1]} {viewYear}</span>
+                  <button onClick={nextMonth} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 flex items-center justify-center text-slate-500 transition-colors active:scale-95">›</button>
+                </div>
+              </div>
+              {loading ? (
+                <div className="space-y-2.5 py-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="skeleton h-12 w-full" style={{ opacity: 1 - i * 0.15 }} />
+                  ))}
+                </div>
+              ) : (
+                <ScheduleTable
+                  schedules={filteredSchedules}
+                  people={people}
+                  allSchedules={schedules}
+                  isCoordinator={false}
+                  userId={myPersonId}
+                />
               )}
             </div>
           </div>
