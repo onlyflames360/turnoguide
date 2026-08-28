@@ -26,17 +26,32 @@ const MAIN_ROLES    = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma
 /** Meses de historial que se tienen en cuenta para equilibrar. */
 export const BALANCE_WINDOW_MONTHS = 3
 
-/** Veces que alguien puede repetir el MISMO rol dentro de la ventana. */
-export const MAX_PER_ROLE_IN_WINDOW = 2
+/** Turnos que deberia tener cada persona activa en el mes, como suelo. */
+export const MIN_TURNS_PER_MONTH = 2
 
 /** Día del mes a partir del cual la app abre ya en el mes siguiente. */
 export const NEXT_MONTH_CUTOFF_DAY = 20
 
+/**
+ * Puestos que cuentan como el mismo trabajo para la regla de no repetir.
+ * Micro 1 y Micro 2 son la misma tarea en dos sitios: quien llevó un micro
+ * el domingo no debe llevar el otro en su siguiente turno.
+ */
+const ROLE_FAMILY = { micro1: 'micro', micro2: 'micro' }
+
+export function familyOf(role) {
+  return ROLE_FAMILY[role] ?? role
+}
+
 /** Pesos de la puntuación. Gana quien saca menos puntos. */
-const W_ROLE_REPEAT  = 3   // por cada vez que ya hizo ESTE rol en la ventana
-const W_TOTAL_LOAD   = 1   // por cada turno total acumulado en la ventana
-const W_BACK_TO_BACK = 10  // si sirvió en la reunión inmediatamente anterior
-const W_SUPPORT_ONLY = -2  // si solo sabe roles de apoyo y el rol es de apoyo
+const W_MONTH_LOAD     = 6    // por turno ya asignado en el mes que se genera
+const W_WINDOW_LOAD    = 1    // por turno en los meses anteriores de la ventana
+const W_ROLE_REPEAT    = 3    // por cada vez que ya hizo ESTE rol en la ventana
+const W_VERSATILITY    = 1    // por habilidad: a igual carga, antes el especialista
+const W_BACK_TO_BACK   = 10   // si sirvió en la reunión inmediatamente anterior
+const W_SAME_ROLE_AGAIN = 8   // si su turno anterior fue este mismo puesto
+const W_SUPPORT_ONLY   = -2   // si solo sabe roles de apoyo y el rol es de apoyo
+const W_BELOW_MINIMUM  = -40  // por debajo del suelo mensual: entra el primero
 
 /**
  * Mes con el que debe abrir la app.
@@ -79,24 +94,62 @@ function shuffled(arr) {
 /**
  * Conteos por persona dentro de la ventana de equilibrio.
  * Solo cuenta turnos reales: las asambleas no computan.
+ *
+ * La carga se separa en dos: la del mes que se está generando y la de los
+ * meses anteriores. El mes en curso pesa mucho más, que es lo que iguala el
+ * reparto; el historial pesa poco y solo afina a largo plazo.
  */
-function buildCounts(people, existingSchedules, windowStart) {
-  const counts = {}
-  const totals = {}
+function buildCounts(people, existingSchedules, windowStart, month, year) {
+  const counts = {}      // por persona y rol, en toda la ventana
+  const windowTotals = {} // turnos en los meses ANTERIORES al que se genera
+  const monthTotals = {}  // turnos ya guardados del mes que se genera
   people.forEach(p => {
     counts[p.id] = {}
     ROLE_KEYS.forEach(r => (counts[p.id][r] = 0))
-    totals[p.id] = 0
+    windowTotals[p.id] = 0
+    monthTotals[p.id] = 0
   })
   existingSchedules.forEach(s => {
     if (s.isAssamblea) return
-    if (windowStart && new Date(s.date) < windowStart) return
+    const d = new Date(s.date)
+    if (windowStart && d < windowStart) return
+    const isTargetMonth = d.getMonth() + 1 === month && d.getFullYear() === year
     ROLE_KEYS.forEach(r => {
       const pid = s.assignments?.[r]
-      if (pid && counts[pid]) { counts[pid][r]++; totals[pid]++ }
+      if (!pid || !counts[pid]) return
+      counts[pid][r]++
+      if (isTargetMonth) monthTotals[pid]++
+      else windowTotals[pid]++
     })
   })
-  return { counts, totals }
+  return { counts, windowTotals, monthTotals }
+}
+
+/**
+ * Último puesto que hizo cada persona antes de `beforeDate`, por familias.
+ * Es lo que impide que a alguien le toque micro dos turnos seguidos.
+ */
+function lastRoleFamilyByPerson(existingSchedules, beforeDate) {
+  const map = {}
+  existingSchedules
+    .filter(s => !s.isAssamblea && new Date(s.date) < beforeDate)
+    .sort((a, b) => new Date(a.date) - new Date(b.date)) // ascendente: gana el último
+    .forEach(s => {
+      ROLE_KEYS.forEach(r => {
+        const pid = s.assignments?.[r]
+        if (pid) map[pid] = familyOf(r)
+      })
+    })
+  return map
+}
+
+/**
+ * Si alguien solo sabe hacer un puesto, la regla de no repetir no puede
+ * aplicarse: le dejaría sin turnos. Solo se exige a quien tiene alternativa.
+ */
+function hasAlternativeRole(person) {
+  const families = new Set((person.skills ?? []).map(familyOf))
+  return families.size > 1
 }
 
 /** Personas que sirvieron en la última reunión anterior a `beforeDate`. */
@@ -111,10 +164,18 @@ function peopleInPreviousMeeting(existingSchedules, beforeDate) {
 /**
  * Genera un array de objetos de horario para las fechas dadas.
  *
- * Reparte con tres criterios combinados en una sola puntuación: cuántas veces
- * has hecho ya ese rol, cuánta carga total llevas, y si serviste en la reunión
- * justo anterior. Los roles se asignan del más escaso al más abundante para que
- * los que tienen pocos candidatos (Vehículos) no se queden con las sobras.
+ * Reparte con una sola puntuación que combina: la carga que ya llevas este mes
+ * (lo que más pesa, y lo que iguala el reparto), la de los meses anteriores,
+ * cuántas veces has hecho ya ese puesto, cuántas habilidades tienes —a igual
+ * carga entra antes el especialista, porque cada plaza suya es una oportunidad
+ * más rara— y si vienes de servir. Quien va por debajo del suelo mensual entra
+ * el primero. Los roles se asignan del más escaso al más abundante para que los
+ * que tienen pocos candidatos (Vehículos) no se queden con las sobras.
+ *
+ * Dos reglas se aplican como filtro y no como puntuación: no repetir en la
+ * reunión inmediatamente siguiente, y no repetir el mismo puesto en tu próximo
+ * turno (Micro 1 y Micro 2 cuentan como el mismo puesto). Ambas ceden si no
+ * queda nadie más, porque cubrir la plaza manda.
  *
  * @param {Array<{date: Date, type: string}>} scheduleDates
  * @param {Array} people - personas con { id, name, skills[], active }
@@ -125,13 +186,17 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
   if (!scheduleDates.length) return []
 
   const firstDate = scheduleDates[0].date
+  const targetMonth = firstDate.getMonth() + 1
+  const targetYear = firstDate.getFullYear()
   const windowStart = new Date(
-    firstDate.getFullYear(),
+    targetYear,
     firstDate.getMonth() - BALANCE_WINDOW_MONTHS,
     1
   )
 
-  const { counts, totals } = buildCounts(activePeople, existingSchedules, windowStart)
+  const { counts, windowTotals, monthTotals } = buildCounts(
+    activePeople, existingSchedules, windowStart, targetMonth, targetYear
+  )
 
   // Roles del más escaso al más abundante (heurística "most constrained first").
   // En empate se mantiene el orden natural de ROLE_KEYS.
@@ -144,6 +209,7 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
   )
 
   let previousMeeting = peopleInPreviousMeeting(existingSchedules, firstDate)
+  const lastFamily = lastRoleFamilyByPerson(existingSchedules, firstDate)
 
   return scheduleDates.map(({ date, type }) => {
     const assignments = {}
@@ -151,25 +217,41 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
 
     roleOrder.forEach(role => {
       const isSupport = SUPPORT_ROLES.has(role)
+      const family = familyOf(role)
       const base = activePeople.filter(
         p => p.skills?.includes(role) && !assignedToday.has(p.id)
       )
 
-      // Relajamos restricciones por orden de importancia hasta encontrar a alguien.
-      // Preferimos cubrir el puesto antes que respetar el descanso o el tope.
-      let pool = base.filter(
-        p => counts[p.id][role] < MAX_PER_ROLE_IN_WINDOW && !previousMeeting.has(p.id)
-      )
-      if (!pool.length) pool = base.filter(p => counts[p.id][role] < MAX_PER_ROLE_IN_WINDOW)
+      // Quien solo sabe este puesto queda exento de la regla de no repetir:
+      // aplicársela le dejaría sin turnos.
+      const repeatsPost = p => hasAlternativeRole(p) && lastFamily[p.id] === family
+
+      // Se relajan las restricciones por orden de importancia hasta encontrar
+      // a alguien. Antes cede el descanso que el no repetir puesto, y cubrir
+      // la plaza va por delante de las dos.
+      let pool = base.filter(p => !previousMeeting.has(p.id) && !repeatsPost(p))
+      if (!pool.length) pool = base.filter(p => !repeatsPost(p))
       if (!pool.length) pool = base.filter(p => !previousMeeting.has(p.id))
       if (!pool.length) pool = base
       if (!pool.length) { assignments[role] = null; return }
 
+      // La variedad se mide DENTRO del repertorio de cada uno: penalizar el
+      // conteo absoluto castigaba al especialista por hacer lo unico que sabe.
+      const ownAverage = p => {
+        const own = (p.skills ?? []).filter(r => counts[p.id][r] !== undefined)
+        if (!own.length) return 0
+        return own.reduce((a, r) => a + counts[p.id][r], 0) / own.length
+      }
+
       const score = p =>
-        W_ROLE_REPEAT * counts[p.id][role] +
-        W_TOTAL_LOAD * totals[p.id] +
+        W_MONTH_LOAD * monthTotals[p.id] +
+        W_WINDOW_LOAD * windowTotals[p.id] +
+        W_ROLE_REPEAT * (counts[p.id][role] - ownAverage(p)) +
+        W_VERSATILITY * (p.skills?.length ?? 0) +
         (previousMeeting.has(p.id) ? W_BACK_TO_BACK : 0) +
-        (isSupport && isSupportOnly(p) ? W_SUPPORT_ONLY : 0)
+        (lastFamily[p.id] === family ? W_SAME_ROLE_AGAIN : 0) +
+        (isSupport && isSupportOnly(p) ? W_SUPPORT_ONLY : 0) +
+        (monthTotals[p.id] < MIN_TURNS_PER_MONTH ? W_BELOW_MINIMUM : 0)
 
       // Barajar antes de ordenar: sort es estable, así los empates salen al azar.
       const chosen = shuffled(pool).sort((a, b) => score(a) - score(b))[0]
@@ -177,7 +259,8 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       assignments[role] = chosen.id
       assignedToday.add(chosen.id)
       counts[chosen.id][role]++
-      totals[chosen.id]++
+      monthTotals[chosen.id]++
+      lastFamily[chosen.id] = family
     })
 
     previousMeeting = assignedToday
@@ -189,6 +272,15 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       assignments,
     }
   })
+}
+
+/**
+ * Personas activas que se quedan por debajo del suelo mensual de turnos.
+ * El suelo es un objetivo, no una ley: si alguien solo sabe un puesto muy
+ * disputado y el mes tiene pocas reuniones, no siempre hay turnos para él.
+ */
+export function peopleBelowMinimum(schedules, people, minimum = MIN_TURNS_PER_MONTH) {
+  return summarizeWorkload(schedules, people).filter(p => p.total < minimum)
 }
 
 /**

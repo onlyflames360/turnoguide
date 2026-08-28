@@ -9,6 +9,7 @@ import {
   findBottleneckRoles,
   ROLE_KEYS,
   BALANCE_WINDOW_MONTHS,
+  MIN_TURNS_PER_MONTH,
 } from '../utils/scheduleGenerator'
 
 const MONTHS = [
@@ -102,6 +103,11 @@ export default function ScheduleGenerator({ people, existingSchedules, onGenerat
     }
   }
 
+  const belowMinimum = useMemo(
+    () => (workload ?? []).filter(w => w.total < MIN_TURNS_PER_MONTH),
+    [workload]
+  )
+
   const personName = (id) => people.find(p => p.id === id)?.name ?? '—'
   const maxLoad = workload?.length ? Math.max(...workload.map(w => w.total), 1) : 1
 
@@ -111,7 +117,8 @@ export default function ScheduleGenerator({ people, existingSchedules, onGenerat
         <div>
           <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">Generador de horario</h3>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-            Rotación equilibrada según habilidades, carga de los últimos {BALANCE_WINDOW_MONTHS} meses y descanso entre turnos
+            Reparto equilibrado: mínimo {MIN_TURNS_PER_MONTH} turnos por persona, sin repetir puesto
+            en turnos seguidos y con la carga de los últimos {BALANCE_WINDOW_MONTHS} meses en cuenta
           </p>
         </div>
         <button onClick={() => setOpen(!open)} className="btn-primary text-sm">
@@ -224,6 +231,15 @@ export default function ScheduleGenerator({ people, existingSchedules, onGenerat
                   entre {Math.min(...workload.map(w => w.total))} y {maxLoad} turnos por persona
                 </span>
               </div>
+              {belowMinimum.length > 0 && (
+                <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900">
+                  <p className="text-xs text-amber-800 dark:text-amber-300">
+                    <span className="font-semibold">Por debajo de {MIN_TURNS_PER_MONTH} turnos:</span>{' '}
+                    {belowMinimum.map(p => p.name).join(', ')}. No hay suficientes puestos
+                    que sepan cubrir; dales alguna habilidad más en "Personas".
+                  </p>
+                </div>
+              )}
               <div className="p-3 space-y-1.5 max-h-64 overflow-y-auto">
                 {workload.map(w => (
                   <div key={w.id} className="flex items-center gap-2">
