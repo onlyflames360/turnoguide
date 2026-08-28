@@ -11,7 +11,7 @@ import AttendanceForm from '../components/AttendanceForm'
 import ProfileAvatar from '../components/ProfileAvatar'
 import EmergencyButton from '../components/EmergencyButton'
 import EmergencyModal from '../components/EmergencyModal'
-import { ROLES } from '../utils/scheduleGenerator'
+import { ROLES, getDefaultPeriod } from '../utils/scheduleGenerator'
 import Toast from '../components/Toast'
 import { playPuedo, playNoPuedo } from '../utils/sounds'
 import { removePreviousResponses } from '../utils/responses'
@@ -37,9 +37,10 @@ export default function UserDashboard() {
   const isAyudante = user?.role === 'ayudante_av' || user?.role === 'ayudante_ac' || user?.role === 'ayudante'
   const roleSection = user?.role === 'ayudante_av' ? 'av' : user?.role === 'ayudante_ac' ? 'ac' : null
 
-  const now = new Date()
-  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
-  const [viewYear, setViewYear] = useState(now.getFullYear())
+  // A partir del día 20 se abre ya en el mes siguiente
+  const defaultPeriod = getDefaultPeriod()
+  const [viewMonth, setViewMonth] = useState(defaultPeriod.month)
+  const [viewYear, setViewYear] = useState(defaultPeriod.year)
 
   // Número de no leídos en el icono de la app (avisos + solicitudes de sustitución)
   useEffect(() => { updateAppBadge(notifBadge + substBadge) }, [notifBadge, substBadge])
@@ -414,7 +415,7 @@ export default function UserDashboard() {
 
         {/* Tab Contabilidad (solo ayudante acomodador) */}
         {roleSection === 'ac' && activeTab === 'contabilidad' && (
-          <div key="tab-contabilidad" className="card fade-in">
+          <div key="tab-contabilidad" className="fade-in">
             <AttendanceTab schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
           </div>
         )}

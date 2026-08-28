@@ -528,3 +528,27 @@ html.theme-transitioning * {
   0%, 100% { background: transparent; }
   50%       { background: rgba(220,38,38,0.12); }
 }
+
+/* ── GRÁFICO DE ASISTENCIA ────────────────────────────────────────────
+   Paleta validada con el validador de dataviz (checks de banda de
+   luminosidad, croma, separación CVD y contraste, en ambos modos).
+   Claro  → #059669 / #2563eb sobre blanco.
+   Oscuro → #059669 / #3b82f6 sobre slate-800. */
+.viz-attendance {
+  --viz-surface:     #ffffff;
+  --viz-presencial:  #059669;
+  --viz-zoom:        #2563eb;
+  --viz-grid:        #e2e8f0;
+  --viz-axis:        #94a3b8;
+  --viz-ink:         #1e293b;
+  --viz-ink-muted:   #94a3b8;
+}
+.dark .viz-attendance {
+  --viz-surface:     #1e293b;
+  --viz-presencial:  #059669;
+  --viz-zoom:        #3b82f6;
+  --viz-grid:        #334155;
+  --viz-axis:        #64748b;
+  --viz-ink:         #e2e8f0;
+  --viz-ink-muted:   #64748b;
+}

@@ -17,6 +17,38 @@ export const SECTIONS = {
   parking:       { label: 'Parking',        cols: ['parking'] },
 }
 
+const SUPPORT_ROLES = new Set(['auditorio', 'entrada', 'parking'])
+const MAIN_ROLES    = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
+
+/* ─── Ajustes del reparto ───────────────────────────────────────────────
+   Todo lo que decide "quién va" está aquí arriba para poder afinarlo. */
+
+/** Meses de historial que se tienen en cuenta para equilibrar. */
+export const BALANCE_WINDOW_MONTHS = 3
+
+/** Veces que alguien puede repetir el MISMO rol dentro de la ventana. */
+export const MAX_PER_ROLE_IN_WINDOW = 2
+
+/** Día del mes a partir del cual la app abre ya en el mes siguiente. */
+export const NEXT_MONTH_CUTOFF_DAY = 20
+
+/** Pesos de la puntuación. Gana quien saca menos puntos. */
+const W_ROLE_REPEAT  = 3   // por cada vez que ya hizo ESTE rol en la ventana
+const W_TOTAL_LOAD   = 1   // por cada turno total acumulado en la ventana
+const W_BACK_TO_BACK = 10  // si sirvió en la reunión inmediatamente anterior
+const W_SUPPORT_ONLY = -2  // si solo sabe roles de apoyo y el rol es de apoyo
+
+/**
+ * Mes con el que debe abrir la app.
+ * A partir del día 20 ya se está preparando el mes siguiente, así que salta.
+ */
+export function getDefaultPeriod(today = new Date(), cutoffDay = NEXT_MONTH_CUTOFF_DAY) {
+  const d = today.getDate() >= cutoffDay
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    : today
+  return { month: d.getMonth() + 1, year: d.getFullYear() }
+}
+
 /** Devuelve todos los domingos y miércoles de un mes dado */
 export function getMonthDates(year, month) {
   const dates = []
@@ -30,86 +62,125 @@ export function getMonthDates(year, month) {
   return dates
 }
 
-/** Construye un mapa de conteos de asignaciones previas por persona y rol */
-function buildCounts(people, existingSchedules) {
-  const counts = {}
-  people.forEach(p => {
-    counts[p.id] = {}
-    ROLE_KEYS.forEach(r => (counts[p.id][r] = 0))
-  })
-  existingSchedules.forEach(s => {
-    if (!s.isAssamblea) {
-      ROLE_KEYS.forEach(r => {
-        const pid = s.assignments?.[r]
-        if (pid && counts[pid]) counts[pid][r]++
-      })
-    }
-  })
-  return counts
-}
-
-/**
- * Genera un array de objetos de horario para las fechas dadas.
- * @param {Array<{date: Date, type: string}>} scheduleDates
- * @param {Array} people - personas activas con { id, name, skills[] }
- * @param {Array} existingSchedules - horarios ya guardados para contar rotación justa
- */
-const SUPPORT_ROLES = new Set(['auditorio', 'entrada', 'parking'])
-const MAIN_ROLES    = new Set(['audio', 'video', 'micro1', 'micro2', 'plataforma'])
-
 function isSupportOnly(person) {
   return !person.skills?.some(s => MAIN_ROLES.has(s))
 }
 
+/** Barajado Fisher-Yates. Devuelve una copia. */
+function shuffled(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+/**
+ * Conteos por persona dentro de la ventana de equilibrio.
+ * Solo cuenta turnos reales: las asambleas no computan.
+ */
+function buildCounts(people, existingSchedules, windowStart) {
+  const counts = {}
+  const totals = {}
+  people.forEach(p => {
+    counts[p.id] = {}
+    ROLE_KEYS.forEach(r => (counts[p.id][r] = 0))
+    totals[p.id] = 0
+  })
+  existingSchedules.forEach(s => {
+    if (s.isAssamblea) return
+    if (windowStart && new Date(s.date) < windowStart) return
+    ROLE_KEYS.forEach(r => {
+      const pid = s.assignments?.[r]
+      if (pid && counts[pid]) { counts[pid][r]++; totals[pid]++ }
+    })
+  })
+  return { counts, totals }
+}
+
+/** Personas que sirvieron en la última reunión anterior a `beforeDate`. */
+function peopleInPreviousMeeting(existingSchedules, beforeDate) {
+  const previous = existingSchedules
+    .filter(s => !s.isAssamblea && new Date(s.date) < beforeDate)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+  if (!previous) return new Set()
+  return new Set(ROLE_KEYS.map(r => previous.assignments?.[r]).filter(Boolean))
+}
+
+/**
+ * Genera un array de objetos de horario para las fechas dadas.
+ *
+ * Reparte con tres criterios combinados en una sola puntuación: cuántas veces
+ * has hecho ya ese rol, cuánta carga total llevas, y si serviste en la reunión
+ * justo anterior. Los roles se asignan del más escaso al más abundante para que
+ * los que tienen pocos candidatos (Vehículos) no se queden con las sobras.
+ *
+ * @param {Array<{date: Date, type: string}>} scheduleDates
+ * @param {Array} people - personas con { id, name, skills[], active }
+ * @param {Array} existingSchedules - horarios ya guardados, para equilibrar
+ */
 export function generateSchedule(scheduleDates, people, existingSchedules = []) {
   const activePeople = people.filter(p => p.active !== false)
-  const counts = buildCounts(activePeople, existingSchedules)
+  if (!scheduleDates.length) return []
 
-  // Total de turnos asignados en esta generación por persona
-  const totalThisMonth = {}
-  activePeople.forEach(p => { totalThisMonth[p.id] = 0 })
+  const firstDate = scheduleDates[0].date
+  const windowStart = new Date(
+    firstDate.getFullYear(),
+    firstDate.getMonth() - BALANCE_WINDOW_MONTHS,
+    1
+  )
+
+  const { counts, totals } = buildCounts(activePeople, existingSchedules, windowStart)
+
+  // Roles del más escaso al más abundante (heurística "most constrained first").
+  // En empate se mantiene el orden natural de ROLE_KEYS.
+  const candidatesPerRole = {}
+  ROLE_KEYS.forEach(role => {
+    candidatesPerRole[role] = activePeople.filter(p => p.skills?.includes(role)).length
+  })
+  const roleOrder = [...ROLE_KEYS].sort(
+    (a, b) => candidatesPerRole[a] - candidatesPerRole[b]
+  )
+
+  let previousMeeting = peopleInPreviousMeeting(existingSchedules, firstDate)
 
   return scheduleDates.map(({ date, type }) => {
     const assignments = {}
     const assignedToday = new Set()
 
-    ROLE_KEYS.forEach(role => {
-      // Preferir personas bajo el límite de 2; si no hay, coger el menos usado como fallback
-      let eligible = activePeople.filter(p =>
-        p.skills?.includes(role) &&
-        !assignedToday.has(p.id) &&
-        (counts[p.id]?.[role] ?? 0) < 2
-      )
-      if (!eligible.length) {
-        eligible = activePeople.filter(p =>
-          p.skills?.includes(role) && !assignedToday.has(p.id)
-        )
-      }
-      if (!eligible.length) { assignments[role] = null; return }
-
+    roleOrder.forEach(role => {
       const isSupport = SUPPORT_ROLES.has(role)
+      const base = activePeople.filter(
+        p => p.skills?.includes(role) && !assignedToday.has(p.id)
+      )
 
-      eligible.sort((a, b) => {
-        // Para roles de apoyo: los que solo saben apoyo van primero
-        if (isSupport) {
-          const aOnly = isSupportOnly(a) ? 0 : 1
-          const bOnly = isSupportOnly(b) ? 0 : 1
-          if (aOnly !== bOnly) return aOnly - bOnly
-        }
-        // 1º: quién ha hecho menos veces este rol en concreto
-        const roleDiff = (counts[a.id]?.[role] ?? 0) - (counts[b.id]?.[role] ?? 0)
-        if (roleDiff !== 0) return roleDiff
-        // 2º: quién lleva menos turnos totales este mes
-        const totalDiff = (totalThisMonth[a.id] ?? 0) - (totalThisMonth[b.id] ?? 0)
-        return totalDiff !== 0 ? totalDiff : Math.random() - 0.5
-      })
+      // Relajamos restricciones por orden de importancia hasta encontrar a alguien.
+      // Preferimos cubrir el puesto antes que respetar el descanso o el tope.
+      let pool = base.filter(
+        p => counts[p.id][role] < MAX_PER_ROLE_IN_WINDOW && !previousMeeting.has(p.id)
+      )
+      if (!pool.length) pool = base.filter(p => counts[p.id][role] < MAX_PER_ROLE_IN_WINDOW)
+      if (!pool.length) pool = base.filter(p => !previousMeeting.has(p.id))
+      if (!pool.length) pool = base
+      if (!pool.length) { assignments[role] = null; return }
 
-      const chosen = eligible[0]
+      const score = p =>
+        W_ROLE_REPEAT * counts[p.id][role] +
+        W_TOTAL_LOAD * totals[p.id] +
+        (previousMeeting.has(p.id) ? W_BACK_TO_BACK : 0) +
+        (isSupport && isSupportOnly(p) ? W_SUPPORT_ONLY : 0)
+
+      // Barajar antes de ordenar: sort es estable, así los empates salen al azar.
+      const chosen = shuffled(pool).sort((a, b) => score(a) - score(b))[0]
+
       assignments[role] = chosen.id
       assignedToday.add(chosen.id)
-      if (counts[chosen.id]) counts[chosen.id][role]++
-      totalThisMonth[chosen.id]++
+      counts[chosen.id][role]++
+      totals[chosen.id]++
     })
+
+    previousMeeting = assignedToday
 
     return {
       date: date.toISOString(),
@@ -118,6 +189,47 @@ export function generateSchedule(scheduleDates, people, existingSchedules = []) 
       assignments,
     }
   })
+}
+
+/**
+ * Resumen de carga por persona, para revisar el reparto antes de guardarlo.
+ * @returns {Array<{id, name, total, distinctRoles, roles: Object}>} de más a menos turnos
+ */
+export function summarizeWorkload(schedules, people) {
+  const byPerson = {}
+  people
+    .filter(p => p.active !== false)
+    .forEach(p => { byPerson[p.id] = { id: p.id, name: p.name, total: 0, roles: {} } })
+
+  schedules.forEach(s => {
+    if (s.isAssamblea) return
+    ROLE_KEYS.forEach(r => {
+      const pid = s.assignments?.[r]
+      if (!pid || !byPerson[pid]) return
+      byPerson[pid].total++
+      byPerson[pid].roles[r] = (byPerson[pid].roles[r] ?? 0) + 1
+    })
+  })
+
+  return Object.values(byPerson)
+    .map(p => ({ ...p, distinctRoles: Object.keys(p.roles).length }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+}
+
+/**
+ * Roles con muy pocas personas capacitadas. Ningún algoritmo puede repartir
+ * lo que no existe, así que conviene avisar al coordinador.
+ */
+export function findBottleneckRoles(people, threshold = 3) {
+  const active = people.filter(p => p.active !== false)
+  return ROLES
+    .map(role => ({
+      key: role.key,
+      label: role.label,
+      count: active.filter(p => p.skills?.includes(role.key)).length,
+    }))
+    .filter(r => r.count <= threshold)
+    .sort((a, b) => a.count - b.count)
 }
 
 /**

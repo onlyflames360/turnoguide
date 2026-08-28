@@ -22,4 +22,8 @@ function injectEnvIntoSW() {
 
 export default defineConfig({
   plugins: [react(), injectEnvIntoSW()],
+  test: {
+    // functions/ tiene su propia suite con jest ("npm test" dentro de functions/)
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })
