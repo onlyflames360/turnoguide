@@ -5,8 +5,42 @@ import {
   generateSchedule,
   summarizeWorkload,
   findBottleneckRoles,
+  peopleBelowMinimum,
+  familyOf,
+  MIN_TURNS_PER_MONTH,
   ROLE_KEYS,
 } from './scheduleGenerator'
+
+/** Puestos consecutivos de cada persona, por familia, en orden cronológico. */
+function turnsByPerson(schedules) {
+  const byPerson = {}
+  schedules.forEach(day => {
+    ROLE_KEYS.forEach(role => {
+      const pid = day.assignments[role]
+      if (pid) (byPerson[pid] ??= []).push({ role, family: familyOf(role), date: day.date })
+    })
+  })
+  return byPerson
+}
+
+/** Plantilla realista: polivalentes de audio/vídeo y acomodadores especializados. */
+const AV = ['audio', 'video', 'micro1', 'micro2', 'plataforma']
+const AC = ['auditorio', 'entrada', 'parking']
+const REALISTIC = [
+  ['Polivalente 1', [...AV, ...AC]],
+  ['Polivalente 2', [...AV, 'auditorio', 'entrada']],
+  ['Polivalente 3', [...AV, ...AC]],
+  ['Polivalente 4', [...AV, 'auditorio']],
+  ['Polivalente 5', [...AV, 'entrada']],
+  ['Polivalente 6', AV],
+  ['Polivalente 7', AV],
+  ['Polivalente 8', ['audio', 'video', 'micro1', 'micro2']],
+  ['Polivalente 9', ['audio', 'video', 'micro1', 'micro2']],
+  ['Acomodador 1', ['auditorio', 'parking']],
+  ['Acomodador 2', ['auditorio', 'entrada']],
+  ['Acomodador 3', ['auditorio', 'parking']],
+  ['Especialista', ['entrada']],
+].map(([name, skills], i) => ({ id: `r${i}`, name, skills, active: true }))
 
 const ALL_SKILLS = [...ROLE_KEYS]
 
@@ -136,7 +170,7 @@ describe('generateSchedule — ventana de equilibrio', () => {
     expect(first.assignments.audio).toBe('viejo')
   })
 
-  it('reparte el mismo rol equitativamente respetando el tope de la ventana', () => {
+  it('reparte el mismo rol equitativamente entre quienes lo saben hacer', () => {
     const people = ['a', 'b', 'c'].map(id => person(id, ['audio']))
     // 3 personas x tope 2 = 6 turnos exactos
     const dates = getMonthDates(2026, 9).slice(0, 6)
@@ -200,5 +234,93 @@ describe('findBottleneckRoles', () => {
       { ...person('b', ['parking']), active: false },
     ]
     expect(findBottleneckRoles(people).find(r => r.key === 'parking').count).toBe(1)
+  })
+})
+
+describe('familyOf', () => {
+  it('trata Micro 1 y Micro 2 como el mismo puesto', () => {
+    expect(familyOf('micro1')).toBe(familyOf('micro2'))
+  })
+
+  it('no agrupa puestos que son trabajos distintos', () => {
+    const sueltos = ['audio', 'video', 'plataforma', 'auditorio', 'entrada', 'parking']
+    const familias = sueltos.map(familyOf)
+    expect(new Set(familias).size).toBe(sueltos.length)
+    expect(familias).not.toContain(familyOf('micro1'))
+  })
+})
+
+describe('generateSchedule — no repetir puesto en el turno siguiente', () => {
+  it('alterna los puestos en vez de repetir el mismo', () => {
+    // Dos personas y dos puestos: la única salida sin repetir es intercambiarlos
+    const people = [person('a', ['audio', 'video']), person('b', ['audio', 'video'])]
+    const result = generateSchedule(getMonthDates(2026, 9).slice(0, 4), people, [])
+    Object.values(turnsByPerson(result)).forEach(turns => {
+      for (let i = 1; i < turns.length; i++) {
+        expect(turns[i].family).not.toBe(turns[i - 1].family)
+      }
+    })
+  })
+
+  it('encadena con el último turno ya guardado, no solo con el mes generado', () => {
+    const people = [person('a', ['audio', 'video']), person('b', ['audio', 'video'])]
+    const previous = past('2026-08-30', { audio: 'a', video: 'b' })
+    const [first] = generateSchedule(getMonthDates(2026, 9), people, [previous])
+    expect(first.assignments.audio).toBe('b')
+    expect(first.assignments.video).toBe('a')
+  })
+
+  it('exime a quien solo sabe un puesto, en vez de dejarle sin turnos', () => {
+    // Si la regla se le aplicase, tras su primer turno no volvería a entrar
+    const people = [
+      person('solo', ['entrada']),
+      ...['x', 'y', 'z'].map(id => person(id, ['entrada', 'auditorio'])),
+    ]
+    const result = generateSchedule(getMonthDates(2026, 9), people, [])
+    const turns = turnsByPerson(result).solo ?? []
+    expect(turns.length).toBeGreaterThanOrEqual(MIN_TURNS_PER_MONTH)
+  })
+})
+
+describe('generateSchedule — suelo mensual de turnos', () => {
+  it('no deja a nadie por debajo del mínimo con una plantilla realista', () => {
+    // El reparto lleva barajado: se repite para que no pase por suerte
+    for (let intento = 0; intento < 15; intento++) {
+      const result = generateSchedule(getMonthDates(2026, 9), REALISTIC, [])
+      const flojos = peopleBelowMinimum(result, REALISTIC)
+      expect(flojos.map(p => p.name)).toEqual([])
+    }
+  })
+
+  it('el especialista de una sola habilidad no queda relegado', () => {
+    // Antes se le castigaba por repetir el unico puesto que sabe hacer
+    for (let intento = 0; intento < 15; intento++) {
+      const result = generateSchedule(getMonthDates(2026, 9), REALISTIC, [])
+      const suyo = summarizeWorkload(result, REALISTIC).find(p => p.name === 'Especialista')
+      expect(suyo.total).toBeGreaterThanOrEqual(MIN_TURNS_PER_MONTH)
+    }
+  })
+
+  it('respeta el suelo tambien arrastrando historial de meses anteriores', () => {
+    let history = []
+    for (const [y, m] of [[2026, 6], [2026, 7], [2026, 8]]) {
+      history = history.concat(generateSchedule(getMonthDates(y, m), REALISTIC, history))
+    }
+    const sept = generateSchedule(getMonthDates(2026, 9), REALISTIC, history)
+    expect(peopleBelowMinimum(sept, REALISTIC)).toEqual([])
+  })
+})
+
+describe('peopleBelowMinimum', () => {
+  it('señala a quien se queda corto y respeta el mínimo por parámetro', () => {
+    const people = [person('a', ['audio']), person('b', ['parking'])]
+    const schedules = [past('2026-09-06', { audio: 'a' })]
+    expect(peopleBelowMinimum(schedules, people, 1).map(p => p.id)).toEqual(['b'])
+    expect(peopleBelowMinimum(schedules, people, 2).map(p => p.id).sort()).toEqual(['a', 'b'])
+  })
+
+  it('no cuenta a las personas pausadas', () => {
+    const people = [{ ...person('a', ['audio']), active: false }]
+    expect(peopleBelowMinimum([], people)).toEqual([])
   })
 })
