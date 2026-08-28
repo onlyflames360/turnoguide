@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { buildAttendanceMessage, whatsappUrl } from '../utils/attendanceShare'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -8,7 +9,7 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
  * Contador de asistencia para la persona asignada a Auditorio.
  * Aparece para las reuniones donde el usuario tiene Auditorio y ya ha llegado el
  * día, salvo que haya respondido "No puedo". Permite registrar presencial + Zoom,
- * compartirlo a otras apps y guardarlo (queda registrado para el ayudante acomodador).
+ * mandarlo por WhatsApp y guardarlo (queda registrado para el ayudante acomodador).
  */
 export default function AttendanceForm({ schedules, myPersonId, userName, myResponses = {} }) {
   const [records, setRecords] = useState({}) // scheduleId → { presencial, zoom }
@@ -75,30 +76,15 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
     }
   }
 
-  async function share(sched) {
-    const d = new Date(sched.date)
-    const dd = String(d.getDate()).padStart(2, '0')
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const yy = String(d.getFullYear()).slice(-2)
-    const presencial = Number(getValue(sched.id, 'presencial') || 0)
-    const zoom = Number(getValue(sched.id, 'zoom') || 0)
-    const text = [
-      userName,
-      `Asistencia ${dd}/${mm}/${yy}`,
-      `Presencial: ${presencial}`,
-      `Zoom: ${zoom}`,
-      `Total: ${presencial + zoom}`,
-    ].filter(Boolean).join('\n')
-    try {
-      if (navigator.share) {
-        await navigator.share({ text })
-      } else {
-        await navigator.clipboard.writeText(text)
-        alert('Copiado al portapapeles')
-      }
-    } catch {
-      /* compartir cancelado */
-    }
+  function share(sched) {
+    const url = whatsappUrl(buildAttendanceMessage(
+      sched.date,
+      getValue(sched.id, 'presencial'),
+      getValue(sched.id, 'zoom'),
+    ))
+    // Con la PWA instalada el navegador puede bloquear window.open
+    const win = window.open(url, '_blank', 'noopener')
+    if (!win) window.location.href = url
   }
 
   if (myMeetings.length === 0) return null
@@ -169,12 +155,12 @@ export default function AttendanceForm({ schedules, myPersonId, userName, myResp
                   <span className="text-sm text-slate-600 dark:text-slate-300">
                     Total: <span className="font-bold text-indigo-600 dark:text-indigo-400">{total}</span>
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-end">
                     <button
                       onClick={() => share(sched)}
                       className="text-sm font-bold px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95"
                     >
-                      📤 Compartir
+                      📲 WhatsApp
                     </button>
                     <button
                       onClick={() => save(sched)}
