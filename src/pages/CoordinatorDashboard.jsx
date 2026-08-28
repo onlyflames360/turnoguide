@@ -23,7 +23,7 @@ async function exportSchedulePdf(...args) {
 import { requestNotificationPermission } from '../utils/notifications'
 import { updateAppBadge } from '../utils/appBadge'
 import { onForegroundMessage } from '../firebase/messaging'
-import { ROLES } from '../utils/scheduleGenerator'
+import { ROLES, getDefaultPeriod } from '../utils/scheduleGenerator'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -46,9 +46,10 @@ export default function CoordinatorDashboard() {
   const [toast, setToast] = useState(null)
   const mountTime = useRef(Timestamp.now())
 
-  const now = new Date()
-  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
-  const [viewYear, setViewYear] = useState(now.getFullYear())
+  // A partir del día 20 se abre ya en el mes siguiente: es lo que toca preparar
+  const defaultPeriod = getDefaultPeriod()
+  const [viewMonth, setViewMonth] = useState(defaultPeriod.month)
+  const [viewYear, setViewYear] = useState(defaultPeriod.year)
 
   useEffect(() => {
     const unsubSched = onSnapshot(
@@ -542,7 +543,7 @@ export default function CoordinatorDashboard() {
 
         {/* Tab: Contabilidad */}
         {tab === 'contabilidad' && (
-          <div key="tab-contabilidad" className="card fade-in">
+          <div key="tab-contabilidad" className="fade-in">
             <AttendanceTab schedules={schedules} myPersonId={myPersonId} userName={user?.name} />
           </div>
         )}
